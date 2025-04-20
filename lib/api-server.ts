@@ -3,198 +3,16 @@ import { getMockArticleById } from "./mock-data";
 import { getSemanticScholarArticleById } from "./api-sources/semantic-scholar";
 import { getCrossrefArticleById } from "./api-sources/crossref";
 import { getLancetArticleById } from "./api-sources/lancet";
+// Importar a nova função de busca com IA
+import { searchArticlesWithAI } from "./api-sources/ai-search";
 
 // Base URL para a API do PubMed E-utilities
 const PUBMED_API_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
 
-// Função para buscar artigos do PubMed no servidor
-export async function searchPubMedServer(
-  options: SearchOptions,
-  limit = 20
-): Promise<Article[]> {
-  const { query, type, language, year, sort } = options;
-
-  console.log(`[PubMed Server] Iniciando pesquisa com parâmetros:`, options);
-
-  if (!query) {
-    console.log(
-      "[PubMed Server] Nenhuma query fornecida, retornando lista vazia"
-    );
-    return [];
-  }
-
-  try {
-    // Construir a query para o PubMed
-    let searchQuery = query;
-
-    // Adicionar filtros à query
-    if (language && language !== "all") {
-      const languageMap: Record<string, string> = {
-        en: "English[Language]",
-        pt: "Portuguese[Language]",
-        es: "Spanish[Language]",
-      };
-      if (languageMap[language]) {
-        searchQuery += ` AND ${languageMap[language]}`;
-      }
-    }
-
-    // Filtrar por ano
-    if (year && year !== "all") {
-      if (year === "older") {
-        searchQuery += ` AND ("0001"[PDAT] : "2017"[PDAT])`;
-      } else {
-        searchQuery += ` AND "${year}"[PDAT]`;
-      }
-    }
-
-    // Adicionar filtro por tipo de campo
-    if (type && type !== "keyword") {
-      const fieldMap: Record<string, string> = {
-        title: "[Title]",
-        author: "[Author]",
-        journal: "[Journal]",
-      };
-      if (fieldMap[type]) {
-        searchQuery = `${query}${fieldMap[type]}`;
-      }
-    }
-
-    // Codificar a query para URL
-    const encodedQuery = encodeURIComponent(searchQuery);
-
-    // Primeiro, buscar os IDs dos artigos
-    const searchUrl = `${PUBMED_API_BASE}/esearch.fcgi?db=pubmed&term=${encodedQuery}&retmode=json&retmax=${limit}`;
-    console.log("[PubMed Server] Buscando IDs de artigos em:", searchUrl);
-
-    const searchResponse = await fetch(searchUrl);
-    if (!searchResponse.ok) {
-      throw new Error(
-        `Erro na API do PubMed: ${searchResponse.status} ${searchResponse.statusText}`
-      );
-    }
-
-    const searchData = await searchResponse.json();
-
-    if (
-      !searchData.esearchresult ||
-      !searchData.esearchresult.idlist ||
-      searchData.esearchresult.idlist.length === 0
-    ) {
-      console.log(
-        "[PubMed Server] Nenhum resultado encontrado na API do PubMed"
-      );
-      return [];
-    }
-
-    const ids = searchData.esearchresult.idlist;
-    console.log(`[PubMed Server] Encontrados ${ids.length} IDs de artigos`);
-
-    // Buscar os detalhes dos artigos usando os IDs
-    const summaryUrl = `${PUBMED_API_BASE}/esummary.fcgi?db=pubmed&id=${ids.join(
-      ","
-    )}&retmode=json`;
-    console.log(
-      "[PubMed Server] Buscando detalhes dos artigos em:",
-      summaryUrl
-    );
-
-    const summaryResponse = await fetch(summaryUrl);
-    if (!summaryResponse.ok) {
-      throw new Error(
-        `Erro na API do PubMed: ${summaryResponse.status} ${summaryResponse.statusText}`
-      );
-    }
-
-    const summaryData = await summaryResponse.json();
-
-    // Processar os resultados
-    const articles: Article[] = [];
-
-    for (const id of ids) {
-      if (summaryData.result && summaryData.result[id]) {
-        const article = summaryData.result[id];
-
-        // Determinar o idioma do artigo
-        let language = "Inglês"; // Padrão
-        if (article.lang && article.lang.length > 0) {
-          if (article.lang[0] === "por") language = "Português";
-          else if (article.lang[0] === "spa") language = "Espanhol";
-        }
-
-        // Extrair autores
-        const authors = article.authors
-          ? article.authors
-              .map((author: any) => author.name)
-              .slice(0, 3)
-              .join(", ")
-          : "Autores não disponíveis";
-
-        // Extrair palavras-chave
-        const keywords = article.keywordlist ? article.keywordlist : [];
-
-        // Criar objeto do artigo
-        articles.push({
-          id: `pm-${id}`, // Adicionar prefixo para identificar a fonte
-          title: article.title || "Título não disponível",
-          authors: authors,
-          journal:
-            article.fulljournalname ||
-            article.source ||
-            "Revista não disponível",
-          year: article.pubdate
-            ? article.pubdate.substring(0, 4)
-            : "Ano não disponível",
-          language: language,
-          abstract: article.abstract || "Resumo não disponível",
-          content: `<h2>Abstract</h2><p>${
-            article.abstract || "Conteúdo não disponível"
-          }</p>`,
-          keywords: keywords.length > 0 ? keywords : ["medicina", "pesquisa"],
-          references: [],
-          doi: article.articleids
-            ? article.articleids.find((id: any) => id.idtype === "doi")
-                ?.value || null
-            : null,
-          url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
-          source: "PubMed", // Adicionar fonte para identificação
-        });
-      }
-    }
-
-    // Ordenar resultados
-    if (sort) {
-      switch (sort) {
-        case "date_desc":
-          articles.sort(
-            (a, b) => Number.parseInt(b.year) - Number.parseInt(a.year)
-          );
-          break;
-        case "date_asc":
-          articles.sort(
-            (a, b) => Number.parseInt(a.year) - Number.parseInt(b.year)
-          );
-          break;
-        case "relevance":
-        default:
-          // Mantém a ordem retornada pelo PubMed (que já é por relevância)
-          break;
-      }
-    }
-
-    console.log(
-      `[PubMed Server] Retornando ${articles.length} artigos processados`
-    );
-    return articles;
-  } catch (error) {
-    console.error("[PubMed Server] Erro ao buscar artigos:", error);
-    return [];
-  }
-}
-
 // Versão da função getArticleById para uso no servidor
 export async function getArticleByIdServer(
-  id: string
+  id: string,
+  searchParams?: URLSearchParams
 ): Promise<Article | null> {
   console.log(`[Server] Buscando artigo com ID: ${id}`);
 
@@ -220,6 +38,37 @@ export async function getArticleByIdServer(
         );
       }
       return result.article;
+    } else if (id.startsWith("ai-")) {
+      // Artigo da busca com IA
+      // Para artigos de IA, vamos retornar um objeto básico com link para o artigo original
+      console.log(
+        `[Server] ID de artigo IA: ${id}, retornando objeto básico com link...`
+      );
+
+      // Extrair o modelo de IA do ID (formato: ai-modelo-timestamp-index)
+      const parts = id.split("-");
+      const aiModel = parts.length > 1 ? parts[1] : "openai";
+
+      // Tentar extrair a URL do artigo original dos parâmetros da requisição
+      const url = searchParams?.get("url") || "#";
+
+      // Criar um objeto de artigo básico com ênfase no link externo
+      return {
+        id,
+        title: "Artigo encontrado via IA",
+        authors: "Autores disponíveis no site original",
+        journal: "Fonte disponível no site original",
+        year: new Date().getFullYear().toString(),
+        language: "Idioma disponível no site original",
+        abstract:
+          "Para acessar o conteúdo completo, por favor visite o link do artigo original.",
+        content:
+          "<p>Para acessar o conteúdo completo, por favor visite o link do artigo original.</p>",
+        keywords: ["artigo", "link", "externo"],
+        references: [],
+        url, // URL do artigo original
+        source: `${aiModel === "gemini" ? "Gemini" : "OpenAI"} Search`,
+      };
     } else if (id.startsWith("pm-")) {
       // Artigo do PubMed - remover o prefixo
       id = id.substring(3);
@@ -349,7 +198,7 @@ export async function getArticleByIdServer(
   }
 }
 
-// Função para buscar artigos de múltiplas fontes
+// Atualizar a função searchMultipleSourcesServer para usar apenas a fonte de IA
 export async function searchMultipleSourcesServer(
   options: SearchOptions
 ): Promise<Article[]> {
@@ -357,7 +206,9 @@ export async function searchMultipleSourcesServer(
 
   const {
     query,
-    sources = ["pubmed", "semantic-scholar", "crossref", "lancet"],
+    sources = ["openai"],
+    aiModel = "openai",
+    specificSources = [],
   } = options;
 
   if (!query) {
@@ -372,82 +223,41 @@ export async function searchMultipleSourcesServer(
   const sourceResults: Record<string, Article[]> = {};
   const sourceErrors: Record<string, string> = {};
 
-  // Adicionar fontes selecionadas
-  if (sources.includes("pubmed")) {
-    searchPromises.push(
-      searchPubMedServer(options, 10)
-        .then((articles) => {
-          sourceResults.pubmed = articles;
-          return articles;
-        })
-        .catch((error) => {
-          console.error("[Multi-Source] Erro ao buscar no PubMed:", error);
-          sourceResults.pubmed = [];
-          sourceErrors.pubmed = error.message || "Erro ao buscar no PubMed";
-          return [];
-        })
-    );
-  }
+  // Adicionar busca com IA (única fonte que usaremos)
+  searchPromises.push(
+    searchArticlesWithAI(query, {
+      language: options.language,
+      year: options.year,
+      type: options.type,
+      limit: 20,
+      sources: specificSources.length > 0 ? specificSources : undefined,
+      aiModel: aiModel as any,
+    })
+      .then((result) => {
+        sourceResults.ai = result.articles;
+        if (result.error) {
+          sourceErrors.ai = result.error;
+        }
+        return result.articles;
+      })
+      .catch((error) => {
+        console.error(`[Multi-Source] Erro ao buscar com ${aiModel}:`, error);
+        sourceResults.ai = [];
 
-  if (sources.includes("semantic-scholar")) {
-    const { searchSemanticScholar } = await import(
-      "./api-sources/semantic-scholar"
-    );
-    searchPromises.push(
-      searchSemanticScholar(query, 10)
-        .then((articles) => {
-          sourceResults["semantic-scholar"] = articles;
-          return articles;
-        })
-        .catch((error) => {
-          console.error(
-            "[Multi-Source] Erro ao buscar no Semantic Scholar:",
-            error
-          );
-          sourceResults["semantic-scholar"] = [];
-          sourceErrors["semantic-scholar"] =
-            error.message || "Erro ao buscar no Semantic Scholar";
-          return [];
-        })
-    );
-  }
+        // Mensagem de erro mais amigável e específica
+        if (error.message?.includes("JSON")) {
+          sourceErrors.ai = `Erro de formatação na resposta do modelo ${
+            aiModel === "gemini" ? "Google" : "OpenAI"
+          }. Tente novamente ou use outro modelo.`;
+        } else {
+          sourceErrors.ai =
+            error.message ||
+            `Erro ao buscar com ${aiModel === "gemini" ? "Google" : "OpenAI"}`;
+        }
 
-  if (sources.includes("crossref")) {
-    const { searchCrossref } = await import("./api-sources/crossref");
-    searchPromises.push(
-      searchCrossref(query, 10)
-        .then((articles) => {
-          sourceResults.crossref = articles;
-          return articles;
-        })
-        .catch((error) => {
-          console.error("[Multi-Source] Erro ao buscar no Crossref:", error);
-          sourceResults.crossref = [];
-          sourceErrors.crossref = error.message || "Erro ao buscar no Crossref";
-          return [];
-        })
-    );
-  }
-
-  if (sources.includes("lancet")) {
-    const { searchLancet } = await import("./api-sources/lancet");
-    searchPromises.push(
-      searchLancet(query, 10)
-        .then((result) => {
-          sourceResults.lancet = result.articles;
-          if (result.error) {
-            sourceErrors.lancet = result.error;
-          }
-          return result.articles;
-        })
-        .catch((error) => {
-          console.error("[Multi-Source] Erro ao buscar no The Lancet:", error);
-          sourceResults.lancet = [];
-          sourceErrors.lancet = error.message || "Erro ao buscar no The Lancet";
-          return [];
-        })
-    );
-  }
+        return [];
+      })
+  );
 
   try {
     // Aguardar todas as buscas e combinar os resultados
@@ -472,14 +282,7 @@ export async function searchMultipleSourcesServer(
     });
 
     console.log(
-      `[Multi-Source] Total de artigos encontrados em todas as fontes: ${allArticles.length}`
-    );
-
-    // Remover possíveis duplicatas (baseado no DOI, se disponível)
-    const uniqueArticles = removeDuplicates(allArticles);
-
-    console.log(
-      `[Multi-Source] Artigos após remoção de duplicatas: ${uniqueArticles.length}`
+      `[Multi-Source] Total de artigos encontrados: ${allArticles.length}`
     );
 
     // Ordenar os resultados conforme solicitado
@@ -487,12 +290,12 @@ export async function searchMultipleSourcesServer(
     if (sort) {
       switch (sort) {
         case "date_desc":
-          uniqueArticles.sort(
+          allArticles.sort(
             (a, b) => Number.parseInt(b.year) - Number.parseInt(a.year)
           );
           break;
         case "date_asc":
-          uniqueArticles.sort(
+          allArticles.sort(
             (a, b) => Number.parseInt(a.year) - Number.parseInt(b.year)
           );
           break;
@@ -503,40 +306,9 @@ export async function searchMultipleSourcesServer(
       }
     }
 
-    return uniqueArticles;
+    return allArticles;
   } catch (error) {
-    console.error(
-      "[Multi-Source] Erro ao buscar artigos de múltiplas fontes:",
-      error
-    );
+    console.error("[Multi-Source] Erro ao buscar artigos:", error);
     return [];
   }
-}
-
-// Função auxiliar para remover duplicatas
-function removeDuplicates(articles: Article[]): Article[] {
-  const uniqueMap = new Map<string, Article>();
-
-  articles.forEach((article) => {
-    // Usar DOI como identificador único se disponível
-    if (article.doi) {
-      // Se já existe um artigo com este DOI, manter o que tem mais informações
-      if (uniqueMap.has(article.doi)) {
-        const existing = uniqueMap.get(article.doi)!;
-        // Verificar qual tem mais informações (por exemplo, abstract mais longo)
-        if (article.abstract.length > existing.abstract.length) {
-          uniqueMap.set(article.doi, article);
-        }
-      } else {
-        // Se não existe ainda, adicionar ao mapa
-        uniqueMap.set(article.doi, article);
-      }
-    } else {
-      // Se não tem DOI, usar o ID como chave
-      uniqueMap.set(article.id, article);
-    }
-  });
-
-  // Converter o mapa de volta para um array
-  return Array.from(uniqueMap.values());
 }

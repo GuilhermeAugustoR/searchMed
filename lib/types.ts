@@ -10,8 +10,8 @@ export interface Article {
   keywords: string[];
   references: string[];
   doi?: string;
-  url?: string;
-  source?: string; // Nova propriedade para identificar a fonte do artigo
+  url?: any;
+  source?: string; // Propriedade para identificar a fonte do artigo
 }
 
 export interface SearchOptions {
@@ -20,5 +20,7 @@ export interface SearchOptions {
   language: string;
   year: string;
   sort: string;
-  sources?: string[]; // Nova propriedade para filtrar por fontes
+  sources?: string[]; // Propriedade para filtrar por fontes
+  aiModel?: string; // Nova propriedade para o modelo de IA
+  specificSources?: string[]; // Nova propriedade para fontes específicas (revistas)
 }

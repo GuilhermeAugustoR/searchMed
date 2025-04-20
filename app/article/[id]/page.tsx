@@ -7,8 +7,10 @@ import { getArticleByIdServer } from "@/lib/api-server";
 
 export default async function ArticlePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: { url?: string };
 }) {
   try {
     // Aguardar os parâmetros antes de acessá-los (necessário no Next.js 15)
@@ -24,6 +26,11 @@ export default async function ArticlePage({
     if (!article) {
       console.log(`[Page] Artigo não encontrado para ID: ${decodedId}`);
       notFound();
+    }
+
+    // Se temos uma URL nos parâmetros de busca e o artigo é de IA, atualizar a URL do artigo
+    if (searchParams?.url && article.id.startsWith("ai-")) {
+      article.url = searchParams.url;
     }
 
     return (

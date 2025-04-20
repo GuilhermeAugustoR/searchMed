@@ -1,7 +1,10 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -12,10 +15,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bookmark, BookmarkCheck, ExternalLink, Database } from "lucide-react";
+import {
+  Bookmark,
+  BookmarkCheck,
+  ExternalLink,
+  Database,
+  AlertCircle,
+} from "lucide-react";
 import type { Article } from "@/lib/types";
 
-// Modificar a interface SearchResultsProps para incluir sourceErrors
+// Modificar a interface SearchResultsProps para incluir sourceErrors e aiModel
 interface SearchResultsProps {
   articles: Article[];
   query: string;
@@ -24,9 +33,9 @@ interface SearchResultsProps {
   year: string;
   sort: string;
   sourceErrors?: Record<string, string>;
+  aiModel?: string;
 }
 
-// Adicionar exibição de erros específicos de fontes
 export function SearchResults({
   articles,
   query,
@@ -35,8 +44,10 @@ export function SearchResults({
   year,
   sort,
   sourceErrors,
+  aiModel = "openai",
 }: SearchResultsProps) {
   const [savedArticles, setSavedArticles] = useState<string[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     // Load saved articles from localStorage
@@ -55,6 +66,34 @@ export function SearchResults({
     localStorage.setItem("savedArticles", JSON.stringify(updated));
   };
 
+  // Função para abrir o link externo em uma nova aba
+  const openExternalLink = (url: string | undefined, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (url) {
+      // Garantir que a URL seja absoluta
+      let fullUrl = url;
+      if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+        fullUrl = `https://${fullUrl}`;
+      }
+      // Abrir em uma nova aba
+      window.open(fullUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  // Função para navegar para a página de detalhes do artigo com a URL como parâmetro de consulta
+  const navigateToArticleDetails = (article: Article, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (article.id.startsWith("ai-") && article.url) {
+      // Para artigos de IA, passar a URL como parâmetro de consulta
+      router.push(
+        `/article/${article.id}?url=${encodeURIComponent(article.url)}`
+      );
+    } else {
+      // Para outros artigos, navegar normalmente
+      router.push(`/article/${article.id}`);
+    }
+  };
+
   // Determinar a cor do badge da fonte
   const getSourceBadgeVariant = (source?: string) => {
     switch (source) {
@@ -65,28 +104,58 @@ export function SearchResults({
       case "Crossref":
         return "outline";
       case "The Lancet":
-        return "destructive"; // Destacar The Lancet com uma cor diferente
+        return "destructive";
+      case "OpenAI Search":
+      case "Gemini Search":
+        return "default";
       default:
         return "default";
     }
   };
 
+  // Determinar o nome de exibição do modelo de IA
+  const aiModelDisplayName = aiModel === "gemini" ? "Google Gemini" : "OpenAI";
+
   return (
     <div className="space-y-6">
       {/* Exibir erros específicos de fontes, se houver */}
       {sourceErrors && Object.keys(sourceErrors).length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-          <h3 className="text-amber-800 font-medium mb-2">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 dark:bg-amber-900/20 dark:border-amber-800">
+          <h3 className="text-amber-800 dark:text-amber-400 font-medium mb-2 flex items-center">
+            <AlertCircle className="h-4 w-4 mr-2" />
             Avisos sobre fontes de pesquisa:
           </h3>
           <ul className="list-disc pl-5 space-y-1">
             {Object.entries(sourceErrors).map(([source, error]) => (
-              <li key={source} className="text-amber-700 text-sm">
-                <strong>{source === "lancet" ? "The Lancet" : source}:</strong>{" "}
-                {error}
+              <li
+                key={source}
+                className="text-amber-700 dark:text-amber-400 text-sm"
+              >
+                <strong>
+                  {source === "lancet"
+                    ? "The Lancet"
+                    : source === "ai"
+                    ? aiModelDisplayName
+                    : source === "openai"
+                    ? "OpenAI Search"
+                    : source}
+                </strong>
+                : {error}
               </li>
             ))}
           </ul>
+          {sourceErrors.ai && (
+            <div className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+              <p>Se você está tendo problemas com a cota da IA, considere:</p>
+              <ul className="list-disc pl-5 mt-1">
+                <li>
+                  Verificar seu plano e faturamento na plataforma correspondente
+                </li>
+                <li>Usar outro modelo de IA nas opções avançadas</li>
+                <li>Usar outras fontes de pesquisa disponíveis</li>
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -118,7 +187,9 @@ export function SearchResults({
             </div>
             <CardTitle className="mt-2">
               <Link
-                href={`/article/${article.id}`}
+                href={`/article/${article.id}${
+                  article.url ? `?url=${encodeURIComponent(article.url)}` : ""
+                }`}
                 className="hover:text-primary transition-colors"
               >
                 {article.title}
@@ -159,10 +230,27 @@ export function SearchResults({
                   <Bookmark className="h-5 w-5" />
                 )}
               </Button>
+
+              {/* Botão para acessar diretamente o artigo original */}
+              {article.url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => openExternalLink(article.url, e)}
+                  className="text-slate-600 dark:text-slate-400 hover:text-primary"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Acessar original
+                </Button>
+              )}
+
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/article/${article.id}`}>
+                <Link
+                  href={`/article/${article.id}${
+                    article.url ? `?url=${encodeURIComponent(article.url)}` : ""
+                  }`}
+                >
                   Ver detalhes
-                  <ExternalLink className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>
