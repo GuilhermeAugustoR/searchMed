@@ -1,108 +1,126 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
-import { getArticleById } from "@/lib/api"
-import type { Article } from "@/lib/types"
+import { useState, useEffect } from "react";
+import { SearchResults } from "@/components/search-results";
+import { Button } from "@/components/ui/button";
+import { Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { getArticleById } from "@/lib/api";
+import type { Article } from "@/lib/types";
 
 export default function SavedArticlesPage() {
-  const [savedArticles, setSavedArticles] = useState<Article[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadSavedArticles = async () => {
-      setLoading(true)
+    async function loadSavedArticles() {
+      setLoading(true);
+      setError(null);
       try {
-        const savedIds = JSON.parse(localStorage.getItem("savedArticles") || "[]")
+        // Carregar IDs dos artigos salvos do localStorage
+        const savedIds = JSON.parse(
+          localStorage.getItem("savedArticles") || "[]"
+        );
 
         if (savedIds.length === 0) {
-          setSavedArticles([])
-          setLoading(false)
-          return
+          setArticles([]);
+          setLoading(false);
+          return;
         }
 
-        const articlesPromises = savedIds.map((id: string) => getArticleById(id))
-        const articles = await Promise.all(articlesPromises)
-        setSavedArticles(articles.filter(Boolean) as Article[])
+        // Buscar detalhes de cada artigo
+        const articlesPromises = savedIds.map(async (id: string) => {
+          try {
+            const article = await getArticleById(id);
+            return article;
+          } catch (error) {
+            console.error(`Erro ao buscar artigo ${id}:`, error);
+            return null;
+          }
+        });
+
+        const fetchedArticles = await Promise.all(articlesPromises);
+        const validArticles = fetchedArticles.filter(
+          (article): article is Article => article !== null
+        );
+
+        if (validArticles.length === 0 && savedIds.length > 0) {
+          setError(
+            "Não foi possível carregar os artigos salvos. Verifique sua conexão e tente novamente."
+          );
+        }
+
+        setArticles(validArticles);
       } catch (error) {
-        console.error("Error loading saved articles:", error)
+        console.error("Erro ao carregar artigos salvos:", error);
+        setError(
+          "Erro ao carregar artigos salvos. Por favor, tente novamente."
+        );
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    loadSavedArticles()
-  }, [])
+    loadSavedArticles();
+  }, []);
 
-  const removeArticle = (id: string) => {
-    const savedIds = JSON.parse(localStorage.getItem("savedArticles") || "[]")
-    const updatedIds = savedIds.filter((savedId: string) => savedId !== id)
-    localStorage.setItem("savedArticles", JSON.stringify(updatedIds))
-
-    setSavedArticles(savedArticles.filter((article) => article.id !== id))
-  }
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Artigos Salvos</h1>
-        <p>Carregando seus artigos salvos...</p>
-      </div>
-    )
-  }
-
-  if (savedArticles.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Artigos Salvos</h1>
-        <div className="text-center py-12 bg-slate-50 rounded-lg">
-          <p className="text-lg text-slate-600 mb-4">Você ainda não salvou nenhum artigo.</p>
-          <Button asChild>
-            <Link href="/">Explorar artigos</Link>
-          </Button>
-        </div>
-      </div>
-    )
-  }
+  const clearSavedArticles = () => {
+    localStorage.setItem("savedArticles", "[]");
+    setArticles([]);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Artigos Salvos</h1>
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold">Artigos Salvos</h1>
+          {articles.length > 0 && (
+            <Button variant="outline" size="sm" onClick={clearSavedArticles}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Limpar todos
+            </Button>
+          )}
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {savedArticles.map((article) => (
-          <Card key={article.id} className="h-full flex flex-col">
-            <CardHeader>
-              <div className="flex justify-between">
-                <Badge variant={article.language === "Inglês" ? "secondary" : "default"}>{article.language}</Badge>
-                <span className="text-sm text-muted-foreground">{article.year}</span>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+            <p className="text-slate-600 dark:text-slate-400">
+              Carregando artigos salvos...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Tentar novamente
+            </Button>
+          </div>
+        ) : (
+          <>
+            {articles.length === 0 ? (
+              <div className="bg-white dark:bg-slate-800 shadow-sm rounded-lg p-8 text-center">
+                <p className="text-slate-600 dark:text-slate-400 mb-4">
+                  Você ainda não salvou nenhum artigo.
+                </p>
+                <Button asChild>
+                  <a href="/search">Iniciar pesquisa</a>
+                </Button>
               </div>
-              <CardTitle className="mt-2 text-lg">
-                <Link href={`/article/${article.id}`} className="hover:underline">
-                  {article.title}
-                </Link>
-              </CardTitle>
-              <CardDescription>{article.journal}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow">
-              <p className="text-sm text-slate-600 line-clamp-4">{article.abstract}</p>
-            </CardContent>
-            <CardFooter className="flex justify-between items-center border-t pt-4">
-              <Button variant="ghost" size="sm" onClick={() => removeArticle(article.id)}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Remover
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/article/${article.id}`}>Ver detalhes</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+            ) : (
+              <SearchResults
+                articles={articles}
+                query=""
+                type=""
+                language=""
+                year=""
+                sort=""
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
-  )
+  );
 }

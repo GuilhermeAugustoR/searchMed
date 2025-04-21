@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -15,16 +14,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Bookmark,
-  BookmarkCheck,
-  ExternalLink,
-  Database,
-  AlertCircle,
-} from "lucide-react";
+import { Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
 import type { Article } from "@/lib/types";
 
-// Modificar a interface SearchResultsProps para incluir sourceErrors e aiModel
 interface SearchResultsProps {
   articles: Article[];
   query: string;
@@ -32,8 +24,6 @@ interface SearchResultsProps {
   language: string;
   year: string;
   sort: string;
-  sourceErrors?: Record<string, string>;
-  aiModel?: string;
 }
 
 export function SearchResults({
@@ -43,11 +33,8 @@ export function SearchResults({
   language,
   year,
   sort,
-  sourceErrors,
-  aiModel = "openai",
 }: SearchResultsProps) {
   const [savedArticles, setSavedArticles] = useState<string[]>([]);
-  const router = useRouter();
 
   useEffect(() => {
     // Load saved articles from localStorage
@@ -80,85 +67,8 @@ export function SearchResults({
     }
   };
 
-  // Função para navegar para a página de detalhes do artigo com a URL como parâmetro de consulta
-  const navigateToArticleDetails = (article: Article, e: React.MouseEvent) => {
-    e.preventDefault();
-    if (article.id.startsWith("ai-") && article.url) {
-      // Para artigos de IA, passar a URL como parâmetro de consulta
-      router.push(
-        `/article/${article.id}?url=${encodeURIComponent(article.url)}`
-      );
-    } else {
-      // Para outros artigos, navegar normalmente
-      router.push(`/article/${article.id}`);
-    }
-  };
-
-  // Determinar a cor do badge da fonte
-  const getSourceBadgeVariant = (source?: string) => {
-    switch (source) {
-      case "PubMed":
-        return "default";
-      case "Semantic Scholar":
-        return "secondary";
-      case "Crossref":
-        return "outline";
-      case "The Lancet":
-        return "destructive";
-      case "OpenAI Search":
-      case "Gemini Search":
-        return "default";
-      default:
-        return "default";
-    }
-  };
-
-  // Determinar o nome de exibição do modelo de IA
-  const aiModelDisplayName = aiModel === "gemini" ? "Google Gemini" : "OpenAI";
-
   return (
     <div className="space-y-6">
-      {/* Exibir erros específicos de fontes, se houver */}
-      {sourceErrors && Object.keys(sourceErrors).length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 dark:bg-amber-900/20 dark:border-amber-800">
-          <h3 className="text-amber-800 dark:text-amber-400 font-medium mb-2 flex items-center">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Avisos sobre fontes de pesquisa:
-          </h3>
-          <ul className="list-disc pl-5 space-y-1">
-            {Object.entries(sourceErrors).map(([source, error]) => (
-              <li
-                key={source}
-                className="text-amber-700 dark:text-amber-400 text-sm"
-              >
-                <strong>
-                  {source === "lancet"
-                    ? "The Lancet"
-                    : source === "ai"
-                    ? aiModelDisplayName
-                    : source === "openai"
-                    ? "OpenAI Search"
-                    : source}
-                </strong>
-                : {error}
-              </li>
-            ))}
-          </ul>
-          {sourceErrors.ai && (
-            <div className="mt-3 text-sm text-amber-700 dark:text-amber-400">
-              <p>Se você está tendo problemas com a cota da IA, considere:</p>
-              <ul className="list-disc pl-5 mt-1">
-                <li>
-                  Verificar seu plano e faturamento na plataforma correspondente
-                </li>
-                <li>Usar outro modelo de IA nas opções avançadas</li>
-                <li>Usar outras fontes de pesquisa disponíveis</li>
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
       {articles.map((article) => (
         <Card
           key={article.id}
@@ -166,30 +76,20 @@ export function SearchResults({
         >
           <CardHeader>
             <div className="flex justify-between items-center">
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant={
-                    article.language === "Inglês" ? "secondary" : "default"
-                  }
-                >
-                  {article.language}
-                </Badge>
-                {article.source && (
-                  <Badge variant={getSourceBadgeVariant(article.source)}>
-                    <Database className="h-3 w-3 mr-1" />
-                    {article.source}
-                  </Badge>
-                )}
-              </div>
+              <Badge
+                variant={
+                  article.language === "Inglês" ? "secondary" : "default"
+                }
+              >
+                {article.language}
+              </Badge>
               <span className="text-sm text-muted-foreground">
                 {article.year}
               </span>
             </div>
             <CardTitle className="mt-2">
               <Link
-                href={`/article/${article.id}${
-                  article.url ? `?url=${encodeURIComponent(article.url)}` : ""
-                }`}
+                href={`/article/${article.id}`}
                 className="hover:text-primary transition-colors"
               >
                 {article.title}
@@ -245,13 +145,7 @@ export function SearchResults({
               )}
 
               <Button variant="outline" size="sm" asChild>
-                <Link
-                  href={`/article/${article.id}${
-                    article.url ? `?url=${encodeURIComponent(article.url)}` : ""
-                  }`}
-                >
-                  Ver detalhes
-                </Link>
+                <Link href={`/article/${article.id}`}>Ver detalhes</Link>
               </Button>
             </div>
           </CardFooter>

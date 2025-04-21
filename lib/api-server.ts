@@ -223,41 +223,219 @@ export async function searchMultipleSourcesServer(
   const sourceResults: Record<string, Article[]> = {};
   const sourceErrors: Record<string, string> = {};
 
-  // Adicionar busca com IA (única fonte que usaremos)
-  searchPromises.push(
-    searchArticlesWithAI(query, {
-      language: options.language,
-      year: options.year,
-      type: options.type,
-      limit: 20,
-      sources: specificSources.length > 0 ? specificSources : undefined,
-      aiModel: aiModel as any,
-    })
-      .then((result) => {
-        sourceResults.ai = result.articles;
-        if (result.error) {
-          sourceErrors.ai = result.error;
-        }
-        return result.articles;
+  // Adicionar busca com base nas fontes selecionadas
+  if (sources.includes("openai")) {
+    // Adicionar busca com IA
+    searchPromises.push(
+      searchArticlesWithAI(query, {
+        language: options.language,
+        year: options.year,
+        type: options.type,
+        limit: 20,
+        sources: specificSources.length > 0 ? specificSources : undefined,
+        aiModel: aiModel as any,
       })
-      .catch((error) => {
-        console.error(`[Multi-Source] Erro ao buscar com ${aiModel}:`, error);
-        sourceResults.ai = [];
+        .then((result) => {
+          sourceResults.ai = result.articles;
+          if (result.error) {
+            sourceErrors.ai = result.error;
+          }
+          return result.articles;
+        })
+        .catch((error) => {
+          console.error(`[Multi-Source] Erro ao buscar com ${aiModel}:`, error);
+          sourceResults.ai = [];
 
-        // Mensagem de erro mais amigável e específica
-        if (error.message?.includes("JSON")) {
-          sourceErrors.ai = `Erro de formatação na resposta do modelo ${
-            aiModel === "gemini" ? "Google" : "OpenAI"
-          }. Tente novamente ou use outro modelo.`;
-        } else {
-          sourceErrors.ai =
-            error.message ||
-            `Erro ao buscar com ${aiModel === "gemini" ? "Google" : "OpenAI"}`;
+          // Mensagem de erro mais amigável e específica
+          if (error.message?.includes("JSON")) {
+            sourceErrors.ai = `Erro de formatação na resposta do modelo ${
+              aiModel === "gemini" ? "Google" : "OpenAI"
+            }. Tente novamente ou use outro modelo.`;
+          } else {
+            sourceErrors.ai =
+              error.message ||
+              `Erro ao buscar com ${
+                aiModel === "gemini" ? "Google" : "OpenAI"
+              }`;
+          }
+
+          return [];
+        })
+    );
+  }
+
+  // Adicionar busca direta do PubMed se selecionado
+  if (sources.includes("pubmed")) {
+    console.log("[Multi-Source] Adicionando busca direta do PubMed");
+
+    // Função para buscar do PubMed diretamente
+    const fetchPubMed = async () => {
+      try {
+        // Construir a query para o PubMed
+        let searchQuery = query;
+
+        // Adicionar filtros à query
+        if (options.language && options.language !== "all") {
+          const languageMap: Record<string, string> = {
+            en: "English[Language]",
+            pt: "Portuguese[Language]",
+            es: "Spanish[Language]",
+          };
+          if (languageMap[options.language]) {
+            searchQuery += ` AND ${languageMap[options.language]}`;
+          }
         }
 
+        // Filtrar por ano
+        if (options.year && options.year !== "all") {
+          if (options.year === "older") {
+            searchQuery += ` AND ("0001"[PDAT] : "2017"[PDAT])`;
+          } else {
+            searchQuery += ` AND "${options.year}"[PDAT]`;
+          }
+        }
+
+        // Adicionar filtro por tipo de campo
+        if (options.type && options.type !== "keyword") {
+          const fieldMap: Record<string, string> = {
+            title: "[Title]",
+            author: "[Author]",
+            journal: "[Journal]",
+          };
+          if (fieldMap[options.type]) {
+            searchQuery = `${query}${fieldMap[options.type]}`;
+          }
+        }
+
+        // Codificar a query para URL
+        const encodedQuery = encodeURIComponent(searchQuery);
+
+        // Primeiro, buscar os IDs dos artigos
+        const searchUrl = `${PUBMED_API_BASE}/esearch.fcgi?db=pubmed&term=${encodedQuery}&retmode=json&retmax=20`;
+        console.log(
+          "[Multi-Source] Buscando IDs de artigos do PubMed em:",
+          searchUrl
+        );
+
+        const searchResponse = await fetch(searchUrl);
+        if (!searchResponse.ok) {
+          throw new Error(
+            `Erro na API do PubMed: ${searchResponse.status} ${searchResponse.statusText}`
+          );
+        }
+
+        const searchData = await searchResponse.json();
+
+        if (
+          !searchData.esearchresult ||
+          !searchData.esearchresult.idlist ||
+          searchData.esearchresult.idlist.length === 0
+        ) {
+          console.log(
+            "[Multi-Source] Nenhum resultado encontrado na API do PubMed"
+          );
+          return [];
+        }
+
+        const ids = searchData.esearchresult.idlist;
+        console.log(
+          `[Multi-Source] Encontrados ${ids.length} IDs de artigos do PubMed`
+        );
+
+        // Buscar os detalhes dos artigos usando os IDs
+        const summaryUrl = `${PUBMED_API_BASE}/esummary.fcgi?db=pubmed&id=${ids.join(
+          ","
+        )}&retmode=json`;
+        console.log(
+          "[Multi-Source] Buscando detalhes dos artigos do PubMed em:",
+          summaryUrl
+        );
+
+        const summaryResponse = await fetch(summaryUrl);
+        if (!summaryResponse.ok) {
+          throw new Error(
+            `Erro na API do PubMed: ${summaryResponse.status} ${summaryResponse.statusText}`
+          );
+        }
+
+        const summaryData = await summaryResponse.json();
+
+        // Processar os resultados
+        const articles: Article[] = [];
+
+        for (const id of ids) {
+          if (summaryData.result && summaryData.result[id]) {
+            const article = summaryData.result[id];
+
+            // Determinar o idioma do artigo
+            let language = "Inglês"; // Padrão
+            if (article.lang && article.lang.length > 0) {
+              if (article.lang[0] === "por") language = "Português";
+              else if (article.lang[0] === "spa") language = "Espanhol";
+            }
+
+            // Extrair autores
+            const authors = article.authors
+              ? article.authors
+                  .map((author: any) => author.name)
+                  .slice(0, 3)
+                  .join(", ")
+              : "Autores não disponíveis";
+
+            // Extrair palavras-chave
+            const keywords = article.keywordlist ? article.keywordlist : [];
+
+            // Criar objeto do artigo
+            articles.push({
+              id: `pm-${id}`, // Adicionar prefixo para identificar a fonte
+              title: article.title || "Título não disponível",
+              authors: authors,
+              journal:
+                article.fulljournalname ||
+                article.source ||
+                "Revista não disponível",
+              year: article.pubdate
+                ? article.pubdate.substring(0, 4)
+                : "Ano não disponível",
+              language: language,
+              abstract: article.abstract || "Resumo não disponível",
+              content: article.abstract
+                ? `<h2>Abstract</h2><p>${article.abstract}</p>`
+                : "Conteúdo completo não disponível via API",
+              keywords:
+                keywords.length > 0 ? keywords : ["medicina", "pesquisa"],
+              references: [],
+              doi: article.articleids
+                ? article.articleids.find((id: any) => id.idtype === "doi")
+                    ?.value || null
+                : null,
+              url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
+              source: "PubMed", // Adicionar fonte para identificação
+            });
+          }
+        }
+
+        console.log(
+          `[Multi-Source] Encontrados ${articles.length} artigos do PubMed`
+        );
+        return articles;
+      } catch (error) {
+        console.error(
+          "[Multi-Source] Erro ao buscar artigos do PubMed:",
+          error
+        );
         return [];
+      }
+    };
+
+    // Adicionar a promessa de busca do PubMed
+    searchPromises.push(
+      fetchPubMed().then((articles) => {
+        sourceResults.pubmed = articles;
+        return articles;
       })
-  );
+    );
+  }
 
   try {
     // Aguardar todas as buscas e combinar os resultados
@@ -278,12 +456,29 @@ export async function searchMultipleSourcesServer(
     // Combinar todos os resultados em um único array
     let allArticles: Article[] = [];
     Object.values(sourceResults).forEach((articles) => {
-      allArticles = [...allArticles, ...articles];
+      // Garantir que todos os artigos tenham o formato correto
+      const processedArticles = articles.map((article) => {
+        // Se o artigo não tiver um prefixo no ID e não for de IA, adicionar o prefixo "pm-"
+        if (!article.id.includes("-") && !article.source?.includes("Search")) {
+          return {
+            ...article,
+            id: `pm-${article.id}`,
+          };
+        }
+        return article;
+      });
+
+      allArticles = [...allArticles, ...processedArticles];
     });
 
     console.log(
       `[Multi-Source] Total de artigos encontrados: ${allArticles.length}`
     );
+    if (allArticles.length > 0) {
+      console.log(
+        `[Multi-Source] Exemplo de artigo: ${JSON.stringify(allArticles[0])}`
+      );
+    }
 
     // Ordenar os resultados conforme solicitado
     const { sort } = options;

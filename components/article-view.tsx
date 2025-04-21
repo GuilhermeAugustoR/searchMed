@@ -6,31 +6,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { Article } from "@/lib/types";
 
 interface ArticleViewProps {
   article: Article;
-}
-
-interface Article {
-  id: string;
-  title: string;
-  authors: string;
-  journal: string;
-  year: string;
-  doi?: string;
-  url?: string;
-  source?: string;
-  content?: string;
-  abstract?: string;
-  references?: string[];
 }
 
 export function ArticleView({ article }: ArticleViewProps) {
@@ -39,18 +19,28 @@ export function ArticleView({ article }: ArticleViewProps) {
   const [summary, setSummary] = useState("");
   const [isTranslating, setIsTranslating] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [aiModel, setAiModel] = useState("openai");
 
   const handleTranslate = () => {
-    // Placeholder for translate function
+    // Placeholder para função de tradução
+    setIsTranslating(true);
+    // Simulação de tradução
+    setTimeout(() => {
+      setTranslatedContent(`Tradução do conteúdo do artigo "${article.title}"`);
+      setIsTranslating(false);
+      setActiveTab("translated");
+    }, 1500);
   };
 
   const handleSummarize = () => {
-    // Placeholder for summarize function
+    // Placeholder para função de resumo
+    setIsSummarizing(true);
+    // Simulação de resumo
+    setTimeout(() => {
+      setSummary(`Resumo do artigo "${article.title}"`);
+      setIsSummarizing(false);
+      setActiveTab("summary");
+    }, 1500);
   };
-
-  // Determinar se o artigo vem de uma fonte de IA
-  const isAISource = article.source?.includes("Search");
 
   // Determinar a URL externa do artigo
   const externalUrl =
@@ -115,22 +105,6 @@ export function ArticleView({ article }: ArticleViewProps) {
           {isSummarizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {summary ? "Ver resumo" : "Resumir artigo"}
         </Button>
-
-        {isAISource && (
-          <>
-            <div className="flex items-center gap-2">
-              <Select value={aiModel} onValueChange={setAiModel}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Modelo de IA" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="openai">OpenAI</SelectItem>
-                  <SelectItem value="gemini">Gemini</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </>
-        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

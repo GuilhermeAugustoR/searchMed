@@ -1,150 +1,84 @@
-import { Suspense } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { SearchResults } from "@/components/search-results";
 import { SearchFilters } from "@/components/search-filters";
 import { SearchForm } from "@/components/search-form";
 import { Skeleton } from "@/components/ui/skeleton";
-import { searchMultipleSourcesServer } from "@/lib/api-server";
+import { Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Article } from "@/lib/types";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { searchArticles } from "@/lib/api";
 
-interface SearchPageProps {
-  searchParams: {
-    q?: string;
-    type?: string;
-    lang?: string;
-    year?: string;
-    sort?: string;
-    sources?: string;
-    aiModel?: string;
-    specificSources?: string;
-  };
-}
+export default function SearchPage() {
+  const searchParams = useSearchParams();
+  const [loading, setLoading] = useState(false);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
-export default async function SearchPage({ searchParams }: SearchPageProps) {
-  // Aguardar os searchParams antes de acessar suas propriedades
-  const params = await Promise.resolve(searchParams);
+  const query = searchParams.get("q") || "";
+  const type = searchParams.get("type") || "keyword";
+  const language = searchParams.get("lang") || "all";
+  const year = searchParams.get("year") || "all";
+  const sort = searchParams.get("sort") || "relevance";
 
-  const query = params.q || "";
-  const type = params.type || "keyword";
-  const language = params.lang || "all";
-  const year = params.year || "all";
-  const sort = params.sort || "relevance";
-  const aiModel = params.aiModel || "openai";
+  const fetchArticles = async () => {
+    if (!query) {
+      setArticles([]);
+      setLoading(false);
+      return;
+    }
 
-  // Processar fontes selecionadas
-  let sources: string[] | undefined;
-  if (params.sources) {
-    sources = params.sources.split(",");
-  }
+    setLoading(true);
+    setError(null);
 
-  // Processar fontes específicas (revistas)
-  let specificSources: string[] | undefined;
-  if (params.specificSources) {
-    specificSources = params.specificSources.split(",");
-  }
-
-  // Buscar artigos diretamente usando a função do servidor
-  let articles: Article[] = [];
-  const sourceErrors: Record<string, string> = {};
-
-  if (query) {
     try {
-      // Chamar diretamente a função do servidor
-      articles = await searchMultipleSourcesServer({
+      console.log("Buscando artigos com parâmetros:", {
         query,
         type,
         language,
         year,
         sort,
-        sources,
-        aiModel,
-        specificSources,
       });
 
-      // Verificar se a API do The Lancet foi solicitada mas não retornou resultados
-      if (
-        sources?.includes("lancet") &&
-        !articles.some((a) => a.source === "The Lancet")
-      ) {
-        if (!process.env.ELSEVIER_API_KEY) {
-          sourceErrors.lancet =
-            "API key do Elsevier não configurada. Configure a variável de ambiente ELSEVIER_API_KEY.";
-        } else {
-          sourceErrors.lancet =
-            "Erro de autorização: A API key do Elsevier não tem permissões suficientes para acessar o The Lancet.";
-        }
+      // Buscar artigos via API
+      const results = await searchArticles(query, type, language, year, sort);
+      console.log(`Encontrados ${results.length} artigos do PubMed`);
+      setArticles(results);
+    } catch (err: any) {
+      console.error("Erro ao buscar artigos:", err);
+
+      // Extrair a mensagem de erro mais específica se disponível
+      let errorMessage = "Erro ao buscar artigos. Por favor, tente novamente.";
+      if (err.message && err.message.includes("429")) {
+        errorMessage =
+          "Muitas requisições. Por favor, aguarde um momento e tente novamente.";
       }
 
-      // Verificar se a IA foi solicitada mas não retornou resultados
-      const aiSourceName = `${
-        aiModel === "gemini" ? "Gemini" : "OpenAI"
-      } Search`;
-      if (
-        sources?.includes("openai") &&
-        !articles.some((a) => a.source === aiSourceName)
-      ) {
-        if (!sourceErrors.ai) {
-          sourceErrors.ai = `Não foi possível obter resultados do modelo ${
-            aiModel === "gemini" ? "Gemini" : "OpenAI"
-          }. Verifique se sua API key tem créditos suficientes ou tente outro modelo.`;
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao buscar artigos:", error);
-      articles = [];
+      setError(errorMessage);
+      setArticles([]);
+    } finally {
+      setLoading(false);
+      setRetrying(false);
     }
-  }
+  };
 
-  // Determinar o nome de exibição do modelo de IA
-  const aiModelDisplayName = aiModel === "gemini" ? "Google Gemini" : "OpenAI";
+  useEffect(() => {
+    fetchArticles();
+  }, [query, type, language, year, sort]);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    fetchArticles();
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <SearchForm />
       </div>
-
-      {sources?.includes("lancet") && sourceErrors.lancet && (
-        <Alert variant="warning" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Problema com a API do The Lancet</AlertTitle>
-          <AlertDescription>
-            {sourceErrors.lancet}
-            <br />
-            <span className="text-sm mt-2 block">
-              Para usar a API do The Lancet, você precisa obter uma chave de API
-              válida da Elsevier com permissões para acessar o conteúdo do The
-              Lancet.
-              <a
-                href="https://dev.elsevier.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline ml-1"
-              >
-                Saiba mais aqui
-              </a>
-              .
-            </span>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {sources?.includes("openai") && sourceErrors.ai && (
-        <Alert variant="warning" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Problema com a API de IA</AlertTitle>
-          <AlertDescription>
-            {sourceErrors.ai}
-            <br />
-            <span className="text-sm mt-2 block">
-              Para usar a pesquisa com {aiModelDisplayName}, você precisa ter
-              uma chave de API válida com créditos suficientes. Tente selecionar
-              outro modelo de IA nas opções avançadas.
-            </span>
-          </AlertDescription>
-        </Alert>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-1">
@@ -153,16 +87,36 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <div className="md:col-span-3">
           <h1 className="text-2xl font-bold mb-6">
             Resultados para: <span className="text-primary">{query}</span>
-            <span className="text-sm font-normal ml-2 text-slate-500">
-              (Usando: {aiModel === "gemini" ? "Google Gemini" : "OpenAI"})
-            </span>
-            {specificSources && specificSources.length > 0 && (
-              <span className="text-sm font-normal block mt-1 text-slate-500">
-                Fontes específicas: {specificSources.join(", ")}
-              </span>
-            )}
           </h1>
-          <Suspense fallback={<SearchResultsSkeleton />}>
+
+          {loading ? (
+            <SearchResultsSkeleton />
+          ) : error ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+              <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-medium text-red-700 dark:text-red-400 mb-2">
+                {error}
+              </h2>
+              <p className="text-red-600 dark:text-red-300 mb-4">
+                {error.includes("Muitas requisições")
+                  ? "A API do PubMed está limitando nossas requisições. Por favor, aguarde um momento e tente novamente."
+                  : "Ocorreu um erro ao buscar os artigos. Por favor, tente novamente."}
+              </p>
+              <Button onClick={handleRetry} disabled={retrying}>
+                {retrying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Tentando novamente...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Tentar novamente
+                  </>
+                )}
+              </Button>
+            </div>
+          ) : (
             <div className="space-y-6">
               <p className="text-sm text-slate-500 dark:text-slate-500 mb-4">
                 {articles.length} artigos encontrados
@@ -177,15 +131,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   <p className="text-sm text-slate-500 dark:text-slate-500">
                     Tente termos diferentes ou ajuste os filtros de pesquisa.
                   </p>
-                  {sources?.includes("openai") && sourceErrors.ai && (
-                    <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-md">
-                      <p className="text-amber-700 dark:text-amber-400 text-sm">
-                        A pesquisa com {aiModelDisplayName} não está disponível
-                        no momento. Tente usar outro modelo de IA ou outras
-                        fontes de pesquisa.
-                      </p>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <SearchResults
@@ -195,12 +140,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   language={language}
                   year={year}
                   sort={sort}
-                  sourceErrors={sourceErrors}
-                  aiModel={aiModel}
                 />
               )}
             </div>
-          </Suspense>
+          )}
         </div>
       </div>
     </div>
@@ -232,4 +175,3 @@ function SearchResultsSkeleton() {
     </div>
   );
 }
-  

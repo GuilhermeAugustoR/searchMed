@@ -1,68 +1,128 @@
-import { Suspense } from "react";
-import { notFound } from "next/navigation";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { ArticleView } from "@/components/article-view";
 import { ArticleActions } from "@/components/article-actions";
-import { Skeleton } from "@/components/ui/skeleton";
-import { getArticleByIdServer } from "@/lib/api-server";
+import { Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { getArticleById } from "@/lib/api";
+import type { Article } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
-export default async function ArticlePage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams?: { url?: string };
-}) {
-  try {
-    // Aguardar os parâmetros antes de acessá-los (necessário no Next.js 15)
-    const { id } = await params;
+export default function ArticlePage() {
+  const params = useParams();
+  const router = useRouter();
+  const [article, setArticle] = useState<Article | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
-    // Decodificar o ID caso esteja codificado na URL
-    const decodedId = decodeURIComponent(id);
-    console.log(`[Page] Buscando artigo com ID decodificado: ${decodedId}`);
+  const fetchArticle = async () => {
+    if (!params.id) return;
 
-    // Usar a versão do servidor da função para buscar o artigo diretamente
-    const article = await getArticleByIdServer(decodedId);
+    setLoading(true);
+    setError(null);
 
-    if (!article) {
-      console.log(`[Page] Artigo não encontrado para ID: ${decodedId}`);
-      notFound();
+    try {
+      const id = decodeURIComponent(params.id as string);
+      console.log("Buscando artigo com ID:", id);
+
+      const fetchedArticle = await getArticleById(id);
+
+      if (!fetchedArticle) {
+        setError("Artigo não encontrado");
+        return;
+      }
+
+      setArticle(fetchedArticle);
+    } catch (err: any) {
+      console.error("Erro ao buscar artigo:", err);
+
+      // Extrair a mensagem de erro mais específica se disponível
+      let errorMessage =
+        "Erro ao carregar o artigo. Por favor, tente novamente.";
+      if (err.message && err.message.includes("429")) {
+        errorMessage =
+          "Muitas requisições. Por favor, aguarde um momento e tente novamente.";
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+      setRetrying(false);
     }
+  };
 
-    // Se temos uma URL nos parâmetros de busca e o artigo é de IA, atualizar a URL do artigo
-    if (searchParams?.url && article.id.startsWith("ai-")) {
-      article.url = searchParams.url;
-    }
+  useEffect(() => {
+    fetchArticle();
+  }, [params.id]);
 
+  const handleRetry = () => {
+    setRetrying(true);
+    fetchArticle();
+  };
+
+  if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <ArticleActions article={article} />
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <h2 className="text-xl font-medium text-slate-700 dark:text-slate-300">
+              Carregando artigo...
+            </h2>
           </div>
-
-          <Suspense fallback={<ArticleSkeleton />}>
-            <ArticleView article={article} />
-          </Suspense>
         </div>
       </div>
     );
-  } catch (error) {
-    console.error("[Page] Erro ao renderizar página do artigo:", error);
-    notFound();
   }
-}
 
-function ArticleSkeleton() {
+  if (error || !article) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-medium text-red-700 dark:text-red-400 mb-2">
+              {error || "Artigo não encontrado"}
+            </h2>
+            <p className="text-red-600 dark:text-red-300 mb-6">
+              {error && error.includes("Muitas requisições")
+                ? "A API do PubMed está limitando nossas requisições. Por favor, aguarde um momento e tente novamente."
+                : "Não foi possível carregar o artigo solicitado. Verifique o ID e tente novamente."}
+            </p>
+            <div className="flex justify-center gap-4">
+              <Button onClick={() => router.back()} variant="outline">
+                Voltar para resultados
+              </Button>
+              <Button onClick={handleRetry} disabled={retrying}>
+                {retrying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Tentando novamente...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Tentar novamente
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-10 w-3/4" />
-      <Skeleton className="h-6 w-1/2" />
-      <Skeleton className="h-4 w-1/3" />
-      <div className="space-y-4 mt-8">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <ArticleActions article={article} />
+        </div>
+
+        <ArticleView article={article} />
       </div>
     </div>
   );

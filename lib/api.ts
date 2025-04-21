@@ -1,5 +1,4 @@
 import type { Article } from "./types";
-import { filterMockArticles, getMockArticleById } from "./mock-data";
 
 // Função para buscar artigos do PubMed
 export async function searchArticles(
@@ -23,7 +22,7 @@ export async function searchArticles(
   }
 
   try {
-    // Construir a URL para a rota de API do proxy
+    // Construir a URL para a API do servidor
     const params = new URLSearchParams({
       q: query,
       type,
@@ -32,30 +31,20 @@ export async function searchArticles(
       sort,
     });
 
-    // Construir URL absoluta usando window.location.origin
-    const apiUrl = `${
-      window.location.origin
-    }/api/pubmed/search?${params.toString()}`;
-    console.log("Fazendo requisição para o proxy de servidor:", apiUrl);
+    // Usar a API do servidor para evitar problemas de CORS
+    const response = await fetch(`/api/pubmed/search?${params.toString()}`);
 
-    const response = await fetch(apiUrl);
     if (!response.ok) {
-      throw new Error(
-        `Erro na requisição: ${response.status} ${response.statusText}`
-      );
+      throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(
-      `Recebidos ${data.articles.length} artigos do proxy de servidor`
-    );
+    console.log(`Encontrados ${data.articles.length} artigos`);
 
     return data.articles;
   } catch (error) {
     console.error("Erro ao buscar artigos:", error);
-    // Em caso de erro, usar dados simulados como fallback
-    console.log("Usando dados simulados como fallback devido a erro");
-    return filterMockArticles(query, type, language, year, sort);
+    return [];
   }
 }
 
@@ -64,39 +53,24 @@ export async function getArticleById(id: string): Promise<Article | null> {
   console.log(`Buscando artigo com ID: ${id}`);
 
   try {
-    // Construir URL absoluta usando window.location.origin
-    const apiUrl = new URL(
-      `/api/pubmed/article/${encodeURIComponent(id)}`,
-      window.location.origin
-    ).toString();
-    console.log("Fazendo requisição para o proxy de servidor:", apiUrl);
-
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
+    // Usar a API do servidor para evitar problemas de CORS
+    const response = await fetch(`/api/pubmed/article/${id}`);
 
     if (!response.ok) {
-      throw new Error(
-        `Erro na requisição: ${response.status} ${response.statusText}`
-      );
+      throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(
-      `Artigo recebido do proxy de servidor: ${
-        data.article?.title || "Não encontrado"
-      }`
-    );
 
+    if (!data.article) {
+      console.log("Artigo não encontrado");
+      return null;
+    }
+
+    console.log(`Artigo encontrado: ${data.article.title}`);
     return data.article;
   } catch (error) {
     console.error("Erro ao buscar artigo por ID:", error);
-    // Em caso de erro, tentar retornar um artigo simulado como fallback
-    console.log("Tentando usar dados simulados como fallback devido a erro");
-    return getMockArticleById(id);
+    return null;
   }
 }

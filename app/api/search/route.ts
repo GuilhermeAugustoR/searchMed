@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
-import { searchMultipleSourcesServer } from "@/lib/api-server";
+import { type NextRequest, NextResponse } from "next/server";
 import type { SearchOptions } from "@/lib/types";
+import { searchArticles } from "@/lib/api";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
   const options: SearchOptions = {
@@ -13,12 +13,6 @@ export async function GET(request: Request) {
     sort: searchParams.get("sort") || "relevance",
   };
 
-  // Obter fontes selecionadas (opcional)
-  const sourcesParam = searchParams.get("sources");
-  if (sourcesParam) {
-    options.sources = sourcesParam.split(",");
-  }
-
   console.log("API de pesquisa: Iniciando pesquisa com parâmetros:", options);
 
   if (!options.query) {
@@ -26,31 +20,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    const articles = await searchMultipleSourcesServer(options);
+    // Usar a função searchArticles diretamente do lib/api.ts
+    const articles = await searchArticles(
+      options.query,
+      options.type,
+      options.language,
+      options.year,
+      options.sort
+    );
+
     console.log(`API de pesquisa: Retornando ${articles.length} artigos`);
 
-    // Adicionar informações sobre erros específicos de fontes
-    const sourceErrors: Record<string, string> = {};
-
-    // Verificar se a API do The Lancet foi solicitada mas não retornou resultados
-    if (
-      options.sources?.includes("lancet") &&
-      !articles.some((a) => a.source === "The Lancet")
-    ) {
-      if (!process.env.ELSEVIER_API_KEY) {
-        sourceErrors.lancet =
-          "API key do Elsevier não configurada. Configure a variável de ambiente ELSEVIER_API_KEY.";
-      } else {
-        sourceErrors.lancet =
-          "Não foi possível obter artigos do The Lancet. Verifique os logs para mais detalhes.";
-      }
-    }
-
-    return NextResponse.json({
-      articles,
-      sourceErrors:
-        Object.keys(sourceErrors).length > 0 ? sourceErrors : undefined,
-    });
+    return NextResponse.json({ articles });
   } catch (error) {
     console.error("API de pesquisa: Erro ao buscar artigos:", error);
     return NextResponse.json(

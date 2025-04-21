@@ -231,6 +231,8 @@ export async function searchArticlesWithAI(
           url = `https://${url}`;
         }
 
+        console.log(`[AI Search] Criando artigo com ID: ${id}`);
+
         return {
           id,
           title: result.title,
