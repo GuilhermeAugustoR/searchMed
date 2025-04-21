@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Article } from "@/lib/types";
@@ -15,32 +15,7 @@ interface ArticleViewProps {
 
 export function ArticleView({ article }: ArticleViewProps) {
   const [activeTab, setActiveTab] = useState("original");
-  const [translatedContent, setTranslatedContent] = useState("");
-  const [summary, setSummary] = useState("");
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [isSummarizing, setIsSummarizing] = useState(false);
-
-  const handleTranslate = () => {
-    // Placeholder para função de tradução
-    setIsTranslating(true);
-    // Simulação de tradução
-    setTimeout(() => {
-      setTranslatedContent(`Tradução do conteúdo do artigo "${article.title}"`);
-      setIsTranslating(false);
-      setActiveTab("translated");
-    }, 1500);
-  };
-
-  const handleSummarize = () => {
-    // Placeholder para função de resumo
-    setIsSummarizing(true);
-    // Simulação de resumo
-    setTimeout(() => {
-      setSummary(`Resumo do artigo "${article.title}"`);
-      setIsSummarizing(false);
-      setActiveTab("summary");
-    }, 1500);
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   // Determinar a URL externa do artigo
   const externalUrl =
@@ -88,37 +63,9 @@ export function ArticleView({ article }: ArticleViewProps) {
         </Alert>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        <Button
-          variant="outline"
-          onClick={handleTranslate}
-          disabled={isTranslating}
-        >
-          {isTranslating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {translatedContent ? "Ver tradução" : "Traduzir artigo"}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleSummarize}
-          disabled={isSummarizing}
-        >
-          {isSummarizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {summary ? "Ver resumo" : "Resumir artigo"}
-        </Button>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="original">Resumo</TabsTrigger>
-          <TabsTrigger
-            value="translated"
-            disabled={!translatedContent && !isTranslating}
-          >
-            Traduzido
-          </TabsTrigger>
-          <TabsTrigger value="summary" disabled={!summary && !isSummarizing}>
-            Resumo
-          </TabsTrigger>
           <TabsTrigger value="references">Referências</TabsTrigger>
         </TabsList>
 
@@ -147,30 +94,6 @@ export function ArticleView({ article }: ArticleViewProps) {
                 Acessar artigo original
               </Button>
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="translated" className="space-y-4">
-          {/* Conteúdo traduzido do artigo */}
-          {translatedContent ? (
-            <p>{translatedContent}</p>
-          ) : (
-            <p className="text-slate-600 dark:text-slate-400">
-              Nenhuma tradução disponível. Clique em "Traduzir artigo" para
-              traduzir.
-            </p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="summary" className="space-y-4">
-          {/* Resumo do artigo */}
-          {summary ? (
-            <p>{summary}</p>
-          ) : (
-            <p className="text-slate-600 dark:text-slate-400">
-              Nenhum resumo disponível. Clique em "Resumir artigo" para gerar um
-              resumo.
-            </p>
           )}
         </TabsContent>
 

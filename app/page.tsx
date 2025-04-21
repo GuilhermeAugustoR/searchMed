@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Search, BookOpen, FileText, BookMarked } from "lucide-react";
+import { FeaturedArticles } from "@/components/featured-articles";
 
 export default function HomePage() {
   return (
@@ -63,6 +64,9 @@ export default function HomePage() {
             </p>
           </div>
         </div>
+
+        <h2 className="text-2xl font-bold mt-16 mb-8">Artigos em Destaque</h2>
+        <FeaturedArticles />
       </div>
     </div>
   );
