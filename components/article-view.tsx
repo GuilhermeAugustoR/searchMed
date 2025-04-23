@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Article } from "@/lib/types";
 
+// Adicionar a importação da função ensureAbsoluteUrl
+import { ensureAbsoluteUrl } from "@/lib/api-helper";
+
 interface ArticleViewProps {
   article: Article;
 }
@@ -21,15 +24,12 @@ export function ArticleView({ article }: ArticleViewProps) {
   const externalUrl =
     article.url || (article.doi ? `https://doi.org/${article.doi}` : null);
 
-  // Função para abrir o link externo em uma nova aba
+  // Modificar a função openExternalLink para usar a função ensureAbsoluteUrl
   const openExternalLink = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (externalUrl) {
-      // Garantir que a URL seja absoluta
-      let url = externalUrl;
-      if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        url = `https://${url}`;
-      }
+      // Garantir que a URL seja absoluta usando a função helper
+      const url = ensureAbsoluteUrl(externalUrl);
       // Abrir em uma nova aba usando window.open
       window.open(url, "_blank", "noopener,noreferrer");
     }

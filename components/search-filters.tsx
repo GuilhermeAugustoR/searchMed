@@ -7,8 +7,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 
-export function SearchFilters() {
+interface SearchFiltersProps {
+  journals?: string[];
+}
+
+export function SearchFilters({ journals = [] }: SearchFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -17,10 +25,58 @@ export function SearchFilters() {
   const language = searchParams.get("lang") || "all";
   const year = searchParams.get("year") || "all";
   const sort = searchParams.get("sort") || "relevance";
+  const source = searchParams.get("source") || "pubmed";
+  const page = searchParams.get("page") || "1";
+  const selectedJournals = searchParams.get("journals")
+    ? searchParams.get("journals")!.split(",")
+    : [];
+
+  // Estado para filtrar a lista de revistas
+  const [journalFilter, setJournalFilter] = useState("");
+  const [filteredJournals, setFilteredJournals] = useState<string[]>(journals);
+
+  // Atualizar a lista filtrada de revistas quando o filtro ou a lista de revistas mudar
+  useEffect(() => {
+    if (!journalFilter) {
+      setFilteredJournals(journals);
+    } else {
+      const filtered = journals.filter((journal) =>
+        journal.toLowerCase().includes(journalFilter.toLowerCase())
+      );
+      setFilteredJournals(filtered);
+    }
+  }, [journalFilter, journals]);
 
   const updateFilter = (name: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set(name, value);
+
+    // Resetar para a primeira página quando um filtro é alterado
+    params.set("page", "1");
+
+    router.push(`/search?${params.toString()}`);
+  };
+
+  const toggleJournal = (journal: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    let journals = selectedJournals.slice();
+
+    if (journals.includes(journal)) {
+      journals = journals.filter((j) => j !== journal);
+    } else {
+      journals.push(journal);
+    }
+
+    if (journals.length > 0) {
+      params.set("journals", journals.join(","));
+    } else {
+      params.delete("journals");
+    }
+
+    // Resetar para a primeira página quando um filtro é alterado
+    params.set("page", "1");
+
     router.push(`/search?${params.toString()}`);
   };
 
@@ -31,6 +87,8 @@ export function SearchFilters() {
     params.set("lang", "all");
     params.set("year", "all");
     params.set("sort", "relevance");
+    params.set("source", source);
+    params.set("page", "1");
     router.push(`/search?${params.toString()}`);
   };
 
@@ -165,6 +223,52 @@ export function SearchFilters() {
                 </div>
               </RadioGroup>
             </div>
+
+            {journals.length > 0 && (
+              <>
+                <Separator />
+
+                <div>
+                  <Label className="text-base">Revistas</Label>
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Filtrar revistas..."
+                      value={journalFilter}
+                      onChange={(e) => setJournalFilter(e.target.value)}
+                      className="mb-2"
+                    />
+                    <ScrollArea className="h-[200px] pr-4">
+                      <div className="space-y-2">
+                        {filteredJournals.map((journal) => (
+                          <div
+                            key={journal}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              id={`journal-${journal}`}
+                              checked={selectedJournals.includes(journal)}
+                              onCheckedChange={() => toggleJournal(journal)}
+                            />
+                            <Label
+                              htmlFor={`journal-${journal}`}
+                              className="font-normal text-sm line-clamp-1"
+                              title={journal}
+                            >
+                              {journal}
+                            </Label>
+                          </div>
+                        ))}
+                        {filteredJournals.length === 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhuma revista encontrada
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <Button

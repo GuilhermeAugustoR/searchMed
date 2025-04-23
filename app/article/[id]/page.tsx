@@ -23,6 +23,19 @@ export default function ArticlePage() {
     setLoading(true);
     setError(null);
 
+    // Adicionar um timeout de segurança para garantir que o loading seja desativado
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log(
+          "Timeout de segurança ativado para resetar o estado de loading"
+        );
+        setLoading(false);
+        setError(
+          "A busca do artigo demorou muito tempo. Por favor, tente novamente."
+        );
+      }
+    }, 30000); // 30 segundos de timeout
+
     try {
       const id = decodeURIComponent(params.id as string);
       console.log("Buscando artigo com ID:", id);
@@ -44,10 +57,14 @@ export default function ArticlePage() {
       if (err.message && err.message.includes("429")) {
         errorMessage =
           "Muitas requisições. Por favor, aguarde um momento e tente novamente.";
+      } else if (err.message && err.message.includes("405")) {
+        errorMessage =
+          "Erro de método HTTP. A API pode estar temporariamente indisponível.";
       }
 
       setError(errorMessage);
     } finally {
+      clearTimeout(timeoutId); // Limpar o timeout
       setLoading(false);
       setRetrying(false);
     }
@@ -88,7 +105,9 @@ export default function ArticlePage() {
             </h2>
             <p className="text-red-600 dark:text-red-300 mb-6">
               {error && error.includes("Muitas requisições")
-                ? "A API do PubMed está limitando nossas requisições. Por favor, aguarde um momento e tente novamente."
+                ? "A API está limitando nossas requisições. Por favor, aguarde um momento e tente novamente."
+                : error && error.includes("método HTTP")
+                ? "A API do arXiv pode estar temporariamente indisponível. Por favor, tente novamente mais tarde ou use outra fonte."
                 : "Não foi possível carregar o artigo solicitado. Verifique o ID e tente novamente."}
             </p>
             <div className="flex justify-center gap-4">

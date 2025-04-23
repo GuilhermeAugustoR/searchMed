@@ -80,7 +80,9 @@ export async function GET(request: NextRequest) {
       const encodedQuery = encodeURIComponent(searchQuery);
 
       // Primeiro, buscar os IDs dos artigos
-      const searchUrl = `${PUBMED_API_BASE}/esearch.fcgi?db=pubmed&term=${encodedQuery}&retmode=json&retmax=20&tool=assistente-escrita&email=user@example.com`;
+      // Aumentar o número de resultados retornados pelo PubMed
+      // Modificar a URL de busca para retornar mais resultados
+      const searchUrl = `${PUBMED_API_BASE}/esearch.fcgi?db=pubmed&term=${encodedQuery}&retmode=json&retmax=30&tool=assistente-escrita&email=user@example.com`;
       console.log("Buscando IDs de artigos em:", searchUrl);
 
       const searchResponse = await fetchWithRetry(searchUrl);

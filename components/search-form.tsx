@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,13 @@ export function SearchForm() {
     searchParams.get("type") || "keyword"
   );
   const [language, setLanguage] = useState(searchParams.get("lang") || "all");
+  const [source, setSource] = useState(searchParams.get("source") || "pubmed");
   const [isSearching, setIsSearching] = useState(false);
+
+  // Efeito para resetar o estado de loading quando os parâmetros de URL mudam
+  useEffect(() => {
+    setIsSearching(false);
+  }, [searchParams]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +44,7 @@ export function SearchForm() {
     params.set("q", searchQuery);
     params.set("type", searchType);
     params.set("lang", language);
+    params.set("source", source);
 
     router.push(`/search?${params.toString()}`);
   };
@@ -94,7 +101,25 @@ export function SearchForm() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+            <Select
+              value={source}
+              onValueChange={setSource}
+              disabled={isSearching}
+            >
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Fonte" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pubmed">PubMed</SelectItem>
+                <SelectItem value="arxiv">arXiv</SelectItem>
+                <SelectItem value="scielo">SciELO</SelectItem>
+                <SelectItem value="core">CORE</SelectItem>
+                <SelectItem value="europepmc">Europe PMC</SelectItem>
+                <SelectItem value="all">Todas as fontes</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Button
               type="submit"
               className="w-full md:w-auto"

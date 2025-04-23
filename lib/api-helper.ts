@@ -10,6 +10,12 @@ export async function fetchWithRetry(
 
   while (true) {
     try {
+      // Verificar se a URL é do arXiv e está usando HTTP
+      if (url.startsWith("http://export.arxiv.org")) {
+        // Substituir por HTTPS para evitar problemas de mixed content
+        url = url.replace("http://", "https://");
+      }
+
       const response = await fetch(url, options);
 
       // Se a resposta for 429 (Too Many Requests) e ainda temos retries disponíveis
@@ -89,3 +95,24 @@ export class RequestLimiter {
 
 // Instância global do limitador de requisições
 export const requestLimiter = new RequestLimiter(2);
+
+// Função para verificar se uma URL é válida
+export function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Função para garantir que uma URL seja absoluta
+export function ensureAbsoluteUrl(url: string): string {
+  if (!url) return "";
+
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return `https://${url}`;
+  }
+
+  return url;
+}

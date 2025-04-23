@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
 import type { Article } from "@/lib/types";
+import { ensureAbsoluteUrl } from "@/lib/api-helper";
 
 interface SearchResultsProps {
   articles: Article[];
@@ -58,10 +59,7 @@ export function SearchResults({
     e.preventDefault();
     if (url) {
       // Garantir que a URL seja absoluta
-      let fullUrl = url;
-      if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
-        fullUrl = `https://${fullUrl}`;
-      }
+      const fullUrl = ensureAbsoluteUrl(url);
       // Abrir em uma nova aba
       window.open(fullUrl, "_blank", "noopener,noreferrer");
     }
@@ -76,13 +74,20 @@ export function SearchResults({
         >
           <CardHeader>
             <div className="flex justify-between items-center">
-              <Badge
-                variant={
-                  article.language === "Inglês" ? "secondary" : "default"
-                }
-              >
-                {article.language}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={
+                    article.language === "Inglês" ? "secondary" : "default"
+                  }
+                >
+                  {article.language}
+                </Badge>
+                {article.source && (
+                  <Badge variant="outline" className="text-xs">
+                    {article.source}
+                  </Badge>
+                )}
+              </div>
               <span className="text-sm text-muted-foreground">
                 {article.year}
               </span>

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import type { Article } from "@/lib/types";
+import { ensureAbsoluteUrl } from "@/lib/api-helper";
 
 interface ArticleActionsProps {
   article: Article;
@@ -90,14 +91,17 @@ export function ArticleActions({ article }: ArticleActionsProps) {
   };
 
   const handleExternalLink = () => {
+    let url = null;
     if (article.url) {
-      window.open(article.url, "_blank", "noopener,noreferrer");
+      url = article.url;
     } else if (article.doi) {
-      window.open(
-        `https://doi.org/${article.doi}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
+      url = `https://doi.org/${article.doi}`;
+    }
+
+    if (url) {
+      // Garantir que a URL seja absoluta usando a função helper
+      const absoluteUrl = ensureAbsoluteUrl(url);
+      window.open(absoluteUrl, "_blank", "noopener,noreferrer");
     }
   };
 
