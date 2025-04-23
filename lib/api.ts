@@ -126,9 +126,10 @@ async function searchPubMed(
   const response = await fetch(`/api/pubmed/search?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error(
-      `Erro na API do PubMed: ${response.status} ${response.statusText}`
+    console.warn(
+      `PubMed API retornou status ${response.status}. Retornando array vazio.`
     );
+    return [];
   }
 
   const data = await response.json();
@@ -174,9 +175,10 @@ async function searchArXiv(
   const response = await fetch(`/api/arxiv/search?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error(
-      `Erro na API do arXiv: ${response.status} ${response.statusText}`
+    console.warn(
+      `arXiv API retornou status ${response.status}. Retornando array vazio.`
     );
+    return [];
   }
 
   const data = await response.json();
@@ -219,9 +221,10 @@ async function searchSciELO(
   const response = await fetch(`/api/scielo/search?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error(
-      `Erro na API do SciELO: ${response.status} ${response.statusText}`
+    console.warn(
+      `SciELO API retornou status ${response.status}. Retornando array vazio.`
     );
+    return [];
   }
 
   const data = await response.json();
@@ -245,9 +248,10 @@ async function searchCORE(query: string, year: string): Promise<Article[]> {
   const response = await fetch(`/api/core/search?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error(
-      `Erro na API do CORE: ${response.status} ${response.statusText}`
+    console.warn(
+      `CORE API retornou status ${response.status}. Retornando array vazio.`
     );
+    return [];
   }
 
   const data = await response.json();
@@ -278,9 +282,10 @@ async function searchEuropePMC(
   const response = await fetch(`/api/europepmc/search?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error(
-      `Erro na API do Europe PMC: ${response.status} ${response.statusText}`
+    console.warn(
+      `Europe PMC API retornou status ${response.status}. Retornando array vazio.`
     );
+    return [];
   }
 
   const data = await response.json();
@@ -297,7 +302,10 @@ export async function getArticleById(id: string): Promise<Article | null> {
 
     if (id.startsWith("arxiv-")) {
       apiEndpoint = "/api/arxiv/article";
-    } else if (id.startsWith("scielo-")) {
+    } else if (
+      id.startsWith("scielo-") ||
+      (id.includes("S") && id.includes("-"))
+    ) {
       apiEndpoint = "/api/scielo/article";
     } else if (id.startsWith("core-")) {
       apiEndpoint = "/api/core/article";
@@ -309,7 +317,10 @@ export async function getArticleById(id: string): Promise<Article | null> {
     const response = await fetch(`${apiEndpoint}/${id}`);
 
     if (!response.ok) {
-      throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+      console.warn(
+        `API retornou status ${response.status} para artigo ${id}. Retornando null.`
+      );
+      return null;
     }
 
     const data = await response.json();

@@ -90,6 +90,7 @@ export function ArticleActions({ article }: ArticleActionsProps) {
     });
   };
 
+  // Função para abrir o link externo
   const handleExternalLink = () => {
     let url = null;
     if (article.url) {
@@ -99,8 +100,13 @@ export function ArticleActions({ article }: ArticleActionsProps) {
     }
 
     if (url) {
-      // Garantir que a URL seja absoluta usando a função helper
+      // Garantir que a URL seja absoluta
       const absoluteUrl = ensureAbsoluteUrl(url);
+
+      // Registrar a URL que está sendo aberta para depuração
+      console.log("Abrindo URL externa:", absoluteUrl);
+
+      // Abrir em uma nova aba
       window.open(absoluteUrl, "_blank", "noopener,noreferrer");
     }
   };

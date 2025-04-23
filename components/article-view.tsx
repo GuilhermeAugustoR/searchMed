@@ -24,14 +24,18 @@ export function ArticleView({ article }: ArticleViewProps) {
   const externalUrl =
     article.url || (article.doi ? `https://doi.org/${article.doi}` : null);
 
-  // Modificar a função openExternalLink para usar a função ensureAbsoluteUrl
+  // Função para abrir o link externo
   const openExternalLink = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (externalUrl) {
-      // Garantir que a URL seja absoluta usando a função helper
-      const url = ensureAbsoluteUrl(externalUrl);
-      // Abrir em uma nova aba usando window.open
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Garantir que a URL seja absoluta
+      const absoluteUrl = ensureAbsoluteUrl(externalUrl);
+
+      // Registrar a URL que está sendo aberta para depuração
+      console.log("Abrindo URL externa:", absoluteUrl);
+
+      // Abrir em uma nova aba
+      window.open(absoluteUrl, "_blank", "noopener,noreferrer");
     }
   };
 

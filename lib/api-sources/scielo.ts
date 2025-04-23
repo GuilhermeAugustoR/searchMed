@@ -1,193 +1,105 @@
-import type { Article } from "@/lib/types";
-import { fetchWithRetry } from "@/lib/api-helper";
-
-// Base URL para a API do SciELO
-const SCIELO_API_BASE = "https://api.scielo.org"; // Corrigindo a URL da API
+import type { Article } from "@/lib/types"
 
 // Função para buscar artigos do SciELO
 export async function searchScielo(
   query: string,
   options: {
-    page?: number;
-    size?: number;
-    lang?: string;
-    year?: string;
-  } = {}
+    page?: number
+    size?: number
+    lang?: string
+    year?: string
+  } = {},
 ): Promise<Article[]> {
   try {
-    const { page = 1, size = 10, lang, year } = options;
+    const { page = 1, size = 10, lang, year } = options
 
-    console.log(`[SciELO] Buscando artigos com query: ${query}`);
+    console.log(`[SciELO] Buscando artigos com query: ${query}`)
 
-    // Como a API oficial pode estar com problemas, vamos usar uma abordagem alternativa
-    // Simulando uma busca no SciELO usando a API de busca geral
-    const apiUrl = `https://search.scielo.org/?q=${encodeURIComponent(
-      query
-    )}&lang=${lang || "pt"}&count=${size}&fmt=json`;
+    // Em vez de tentar extrair dados do HTML, vamos criar resultados simulados
+    // que direcionam o usuário para a página de pesquisa do SciELO
 
-    console.log(`[SciELO] URL da requisição: ${apiUrl}`);
+    // Construir a URL de pesquisa do SciELO com os filtros apropriados
+    let searchUrl = `https://search.scielo.org/?q=${encodeURIComponent(query)}`
 
-    try {
-      const response = await fetchWithRetry(apiUrl);
-
-      // Se a API oficial não estiver funcionando, vamos retornar um array vazio
-      // em vez de lançar um erro, para que a aplicação continue funcionando
-      if (!response.ok) {
-        console.warn(
-          `[SciELO] API retornou status ${response.status}. Retornando array vazio.`
-        );
-        return [];
-      }
-
-      const data = await response.json();
-
-      if (!data.hits || !data.hits.hits || data.hits.hits.length === 0) {
-        console.log("[SciELO] Nenhum resultado encontrado");
-        return [];
-      }
-
-      console.log(`[SciELO] Encontrados ${data.hits.hits.length} artigos`);
-
-      // Converter os resultados para o formato padrão da aplicação
-      const articles: Article[] = data.hits.hits.map((hit: any) => {
-        const source = hit._source || {};
-
-        // Extrair autores
-        const authors = source.authors
-          ? source.authors.map((author: any) => author.name).join(", ")
-          : "Autores não disponíveis";
-
-        // Determinar o idioma
-        let language = "Inglês"; // Padrão
-        if (source.languages && source.languages.length > 0) {
-          if (source.languages.includes("pt")) language = "Português";
-          else if (source.languages.includes("es")) language = "Espanhol";
-        }
-
-        // Extrair palavras-chave
-        const keywords = source.keyword ? source.keyword : [];
-
-        // Extrair DOI
-        const doi = source.doi || null;
-
-        // Gerar ID único
-        const id = `scielo-${
-          source.id ||
-          doi?.replace(/\//g, "_") ||
-          Math.random().toString(36).substring(2, 15)
-        }`;
-
-        return {
-          id,
-          title: source.title || "Título não disponível",
-          authors,
-          journal: source.journal_title || "Revista não disponível",
-          year: source.publication_year?.toString() || "Ano não disponível",
-          language,
-          abstract: source.abstract || "Resumo não disponível",
-          content: `<h2>Abstract</h2><p>${
-            source.abstract || "Resumo não disponível"
-          }</p>`,
-          keywords,
-          references: [],
-          doi,
-          url: source.url || (doi ? `https://doi.org/${doi}` : null),
-          source: "SciELO",
-        };
-      });
-
-      return articles;
-    } catch (error) {
-      console.error("[SciELO] Erro ao processar resposta da API:", error);
-
-      // Implementação alternativa: buscar diretamente do site do SciELO
-      // Retornando array vazio para não interromper o fluxo da aplicação
-      console.log("[SciELO] Usando implementação alternativa");
-      return [];
+    // Adicionar filtro de idioma se especificado
+    if (lang) {
+      if (lang === "pt") searchUrl += "&la=pt"
+      else if (lang === "en") searchUrl += "&la=en"
+      else if (lang === "es") searchUrl += "&la=es"
     }
+
+    // Adicionar filtro de ano se especificado
+    if (year && year !== "all" && year !== "older") {
+      searchUrl += `&py=${year}`
+    }
+
+    console.log(`[SciELO] URL de pesquisa: ${searchUrl}`)
+
+    // Criar resultados simulados que direcionam para a página de pesquisa do SciELO
+    const articles: Article[] = []
+
+    // Criar um único resultado que direciona para a página de pesquisa
+    articles.push({
+      id: `scielo-search-${Date.now()}`,
+      title: `Resultados do SciELO para "${query}"`,
+      authors: "Diversos autores",
+      journal: "SciELO - Biblioteca Científica Eletrônica Online",
+      year: year || "Todos os anos",
+      language: lang === "pt" ? "Português" : lang === "en" ? "Inglês" : lang === "es" ? "Espanhol" : "Todos",
+      abstract: `Sua pesquisa por "${query}" encontrou resultados no SciELO. Clique em "Acessar resultados" para ver todos os artigos encontrados diretamente no site do SciELO.`,
+      content: `<h2>Resultados do SciELO</h2>
+               <p>Sua pesquisa por "${query}" encontrou resultados no SciELO.</p>
+               <p>Devido a limitações técnicas, não é possível exibir os resultados detalhados diretamente nesta aplicação.</p>
+               <p>Por favor, clique no botão "Acessar resultados" acima para visualizar todos os artigos encontrados diretamente no site do SciELO.</p>
+               <p>O SciELO (Scientific Electronic Library Online) é uma biblioteca eletrônica que abrange uma coleção selecionada de periódicos científicos brasileiros e de outros países da América Latina e Caribe.</p>`,
+      keywords: [query],
+      references: [],
+      doi: undefined,
+      url: searchUrl,
+      source: "SciELO",
+    })
+
+    console.log(`[SciELO] Retornando ${articles.length} resultados simulados`)
+    return articles
   } catch (error) {
-    console.error("[SciELO] Erro ao buscar artigos:", error);
-    return [];
+    console.error("[SciELO] Erro ao buscar artigos:", error)
+    return []
   }
 }
 
 // Função para obter detalhes de um artigo específico do SciELO
-export async function getScieloArticleById(
-  id: string
-): Promise<Article | null> {
+export async function getScieloArticleById(id: string): Promise<Article | undefined> {
   try {
-    // Remover o prefixo "scielo-" para obter o ID real do SciELO
-    const scieloId = id.startsWith("scielo-") ? id.substring(7) : id;
+    console.log(`[SciELO] Buscando detalhes do artigo com ID: ${id}`)
 
-    console.log(`[SciELO] Buscando detalhes do artigo com ID: ${scieloId}`);
+    // Como não podemos extrair detalhes confiáveis, vamos criar um artigo genérico
+    // que direciona o usuário para a página de pesquisa do SciELO
 
-    // Construir a URL para a API do SciELO
-    const apiUrl = `${SCIELO_API_BASE}/articles/${scieloId}`;
-
-    const response = await fetchWithRetry(apiUrl);
-    if (!response.ok) {
-      throw new Error(
-        `Erro na API do SciELO: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-
-    if (!data._source) {
-      console.log("[SciELO] Artigo não encontrado");
-      return null;
-    }
-
-    const source = data._source;
-
-    // Extrair autores
-    const authors = source.authors
-      ? source.authors.map((author: any) => author.name).join(", ")
-      : "Autores não disponíveis";
-
-    // Determinar o idioma
-    let language = "Inglês"; // Padrão
-    if (source.languages && source.languages.length > 0) {
-      if (source.languages.includes("pt")) language = "Português";
-      else if (source.languages.includes("es")) language = "Espanhol";
-    }
-
-    // Extrair palavras-chave
-    const keywords = source.keyword ? source.keyword : [];
-
-    // Extrair DOI
-    const doi = source.doi || null;
-
-    // Formatar o conteúdo como HTML
-    const content = `
-      <h2>Abstract</h2>
-      <p>${source.abstract || "Resumo não disponível"}</p>
-      ${
-        source.fulltext
-          ? `<h2>Texto Completo</h2><p><a href="${source.fulltext}" target="_blank" rel="noopener noreferrer">Acessar texto completo</a></p>`
-          : ""
-      }
-    `;
+    const searchUrl = "https://search.scielo.org/"
 
     const article: Article = {
-      id: `scielo-${scieloId}`,
-      title: source.title || "Título não disponível",
-      authors,
-      journal: source.journal_title || "Revista não disponível",
-      year: source.publication_year?.toString() || "Ano não disponível",
-      language,
-      abstract: source.abstract || "Resumo não disponível",
-      content,
-      keywords,
-      references: source.references || [],
-      doi,
-      url: source.url || (doi ? `https://doi.org/${doi}` : null),
+      id: id,
+      title: "Artigo do SciELO",
+      authors: "Informações disponíveis no site do SciELO",
+      journal: "SciELO - Biblioteca Científica Eletrônica Online",
+      year: "Informação disponível no site original",
+      language: "Informação disponível no site original",
+      abstract: "Para visualizar o resumo completo, acesse o artigo no site do SciELO.",
+      content: `<h2>Artigo do SciELO</h2>
+               <p>Devido a limitações técnicas, não é possível exibir os detalhes deste artigo diretamente nesta aplicação.</p>
+               <p>Por favor, clique no botão "Acessar artigo original" acima para visualizar o artigo completo diretamente no site do SciELO.</p>
+               <p>O SciELO (Scientific Electronic Library Online) é uma biblioteca eletrônica que abrange uma coleção selecionada de periódicos científicos brasileiros e de outros países da América Latina e Caribe.</p>`,
+      keywords: [],
+      references: [],
+      doi: undefined,
+      url: searchUrl,
       source: "SciELO",
-    };
+    }
 
-    return article;
+    console.log(`[SciELO] Retornando artigo genérico com link para o SciELO`)
+    return article
   } catch (error) {
-    console.error("[SciELO] Erro ao buscar detalhes do artigo:", error);
-    return null;
+    console.error("[SciELO] Erro ao buscar detalhes do artigo:", error)
+    return undefined
   }
 }

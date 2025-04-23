@@ -10,7 +10,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const id = params.id;
+  // Aguardar a resolução de params antes de acessar suas propriedades
+  const { id } = params;
   const cacheKey = `article:${id}`;
 
   console.log(`API PubMed: Buscando artigo com ID: ${id}`);

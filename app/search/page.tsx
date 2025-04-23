@@ -63,6 +63,9 @@ export default function SearchPage() {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", newPage.toString());
     router.push(`/search?${params.toString()}`);
+
+    // Rolar para o topo da página
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Adicionar um timeout para garantir que o estado de loading seja resetado mesmo em caso de erro
