@@ -278,18 +278,29 @@ async function searchEuropePMC(
     page_size: "50", // Aumentar o número de resultados
   });
 
-  // Usar a API do servidor para evitar problemas de CORS
-  const response = await fetch(`/api/europepmc/search?${params.toString()}`);
+  console.log(
+    "Buscando no Europe PMC com URL:",
+    `/api/europepmc/search?${params.toString()}`
+  );
 
-  if (!response.ok) {
-    console.warn(
-      `Europe PMC API retornou status ${response.status}. Retornando array vazio.`
-    );
+  try {
+    // Usar a API do servidor para evitar problemas de CORS
+    const response = await fetch(`/api/europepmc/search?${params.toString()}`);
+
+    if (!response.ok) {
+      console.warn(
+        `Europe PMC API retornou status ${response.status}: ${response.statusText}. Retornando array vazio.`
+      );
+      return [];
+    }
+
+    const data = await response.json();
+    console.log(`Europe PMC retornou ${data.articles?.length || 0} artigos`);
+    return data.articles || [];
+  } catch (error) {
+    console.error("Erro ao buscar do Europe PMC:", error);
     return [];
   }
-
-  const data = await response.json();
-  return data.articles;
 }
 
 // Função para obter um artigo por ID

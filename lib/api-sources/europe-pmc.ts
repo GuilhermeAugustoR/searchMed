@@ -28,20 +28,25 @@ export async function searchEuropePmc(
     const cursorMark = page === 1 ? "*" : `page${page}`;
 
     // Construir a URL para a API do Europe PMC
+    // Modificando a URL para usar parâmetros mais simples e garantir que funcione
     const apiUrl = `${EUROPE_PMC_API_BASE}/search?query=${encodeURIComponent(
       query
-    )}&resultType=${resultType}&cursorMark=${cursorMark}&pageSize=${pageSize}&sort=${sort}&format=json`;
+    )}&resultType=${resultType}&cursorMark=${cursorMark}&pageSize=${pageSize}&format=json`;
 
     console.log(`[Europe PMC] URL da requisição: ${apiUrl}`);
 
     const response = await fetchWithRetry(apiUrl);
     if (!response.ok) {
+      console.error(
+        `[Europe PMC] API retornou status ${response.status}: ${response.statusText}`
+      );
       throw new Error(
         `Erro na API do Europe PMC: ${response.status} ${response.statusText}`
       );
     }
 
     const data = await response.json();
+    console.log(`[Europe PMC] Resposta da API:`, data);
 
     if (
       !data.resultList ||
@@ -69,7 +74,7 @@ export async function searchEuropePmc(
       }
 
       // Extrair palavras-chave
-      const keywords = result.keywordList ? result.keywordList.keyword : [];
+      const keywords = result.keywordList?.keyword || [];
 
       // Extrair DOI
       const doi = result.doi || null;
@@ -78,6 +83,16 @@ export async function searchEuropePmc(
       const id = `epmc-${
         result.id || Math.random().toString(36).substring(2, 15)
       }`;
+
+      // Construir URL para o artigo
+      let url = null;
+      if (result.fullTextUrlList?.fullTextUrl?.[0]?.url) {
+        url = result.fullTextUrlList.fullTextUrl[0].url;
+      } else if (doi) {
+        url = `https://doi.org/${doi}`;
+      } else {
+        url = `https://europepmc.org/article/MED/${result.id}`;
+      }
 
       return {
         id,
@@ -93,9 +108,7 @@ export async function searchEuropePmc(
         keywords,
         references: [],
         doi,
-        url:
-          result.fullTextUrlList?.fullTextUrl?.[0]?.url ||
-          (doi ? `https://doi.org/${doi}` : null),
+        url,
         source: "Europe PMC",
       };
     });
@@ -203,6 +216,16 @@ export async function getEuropePmcArticleById(
       }
     `;
 
+    // Construir URL para o artigo
+    let url = null;
+    if (result.fullTextUrlList?.fullTextUrl?.[0]?.url) {
+      url = result.fullTextUrlList.fullTextUrl[0].url;
+    } else if (doi) {
+      url = `https://doi.org/${doi}`;
+    } else {
+      url = `https://europepmc.org/article/MED/${pmcId}`;
+    }
+
     const article: Article = {
       id: `epmc-${pmcId}`,
       title: result.title || "Título não disponível",
@@ -215,9 +238,7 @@ export async function getEuropePmcArticleById(
       keywords,
       references,
       doi,
-      url:
-        result.fullTextUrlList?.fullTextUrl?.[0]?.url ||
-        (doi ? `https://doi.org/${doi}` : null),
+      url,
       source: "Europe PMC",
     };
 
