@@ -1,6 +1,8 @@
 import type { Article } from "./types";
+import { searchCrossRef } from "./api-sources/crossref";
+import { searchOpenAlex } from "./api-sources/openalex";
 
-// Função para buscar artigos do PubMed
+// Função para buscar artigos de várias fontes
 export async function searchArticles(
   query: string,
   type: string,
@@ -43,6 +45,34 @@ export async function searchArticles(
       case "europepmc":
         articles = await searchEuropePMC(query, sort);
         break;
+      case "scopus":
+        articles = await searchScopus(query, year, sort);
+        break;
+      case "ieee":
+        articles = await searchIEEE(query, year, sort);
+        break;
+      case "springer":
+        articles = await searchSpringer(query, year, sort);
+        break;
+      case "doaj":
+        articles = await searchDOAJ(query, year, sort);
+        break;
+      case "crossref":
+        articles = await searchCrossRef(query, {
+          page: 1,
+          pageSize: 20,
+          year,
+          sort,
+        });
+        break;
+      case "openalex":
+        articles = await searchOpenAlex(query, {
+          page: 1,
+          pageSize: 20,
+          year,
+          sort,
+        });
+        break;
       case "all":
         // Buscar de todas as fontes e combinar resultados
         // Usando Promise.allSettled para continuar mesmo se algumas promessas falharem
@@ -52,6 +82,12 @@ export async function searchArticles(
           searchSciELO(query, language, year),
           searchCORE(query, year),
           searchEuropePMC(query, sort),
+          searchScopus(query, year, sort),
+          searchIEEE(query, year, sort),
+          searchSpringer(query, year, sort),
+          searchDOAJ(query, year, sort),
+          searchCrossRef(query, { page: 1, pageSize: 10, year, sort }),
+          searchOpenAlex(query, { page: 1, pageSize: 10, year, sort }),
         ]);
 
         // Processar os resultados, ignorando os que falharam
@@ -59,7 +95,19 @@ export async function searchArticles(
           if (result.status === "fulfilled") {
             return result.value;
           } else {
-            const sources = ["PubMed", "arXiv", "SciELO", "CORE", "Europe PMC"];
+            const sources = [
+              "PubMed",
+              "arXiv",
+              "SciELO",
+              "CORE",
+              "Europe PMC",
+              "Scopus",
+              "IEEE",
+              "Springer",
+              "DOAJ",
+              "CrossRef",
+              "OpenAlex",
+            ];
             console.error(
               `Erro ao buscar de ${sources[index]}:`,
               result.reason
@@ -75,6 +123,12 @@ export async function searchArticles(
           ...validResults[2], // SciELO
           ...validResults[3], // CORE
           ...validResults[4], // Europe PMC
+          ...validResults[5], // Scopus
+          ...validResults[6], // IEEE
+          ...validResults[7], // Springer
+          ...validResults[8], // DOAJ
+          ...validResults[9], // CrossRef
+          ...validResults[10], // OpenAlex
         ];
 
         // Ordenar por relevância (assumindo que os mais relevantes vêm primeiro de cada fonte)
@@ -303,6 +357,174 @@ async function searchEuropePMC(
   }
 }
 
+// Função para buscar artigos do Scopus
+async function searchScopus(
+  query: string,
+  year: string,
+  sort: string
+): Promise<Article[]> {
+  // Mapear os parâmetros de ordenação
+  let sortParam = "relevance";
+  if (sort === "date_desc") {
+    sortParam = "date desc";
+  } else if (sort === "date_asc") {
+    sortParam = "date asc";
+  }
+
+  // Construir a URL para a API do servidor
+  const params = new URLSearchParams({
+    q: query,
+    sort: sortParam,
+    page_size: "50", // Aumentar o número de resultados
+  });
+
+  // Adicionar filtro de ano se especificado
+  if (year && year !== "all" && year !== "older") {
+    params.set("year", year);
+  } else if (year === "older") {
+    params.set("year", "older");
+  }
+
+  // Usar a API do servidor para evitar problemas de CORS
+  const response = await fetch(`/api/scopus/search?${params.toString()}`);
+
+  if (!response.ok) {
+    console.warn(
+      `Scopus API retornou status ${response.status}. Retornando array vazio.`
+    );
+    return [];
+  }
+
+  const data = await response.json();
+  return data.articles || [];
+}
+
+// Função para buscar artigos do IEEE
+async function searchIEEE(
+  query: string,
+  year: string,
+  sort: string
+): Promise<Article[]> {
+  // Mapear os parâmetros de ordenação
+  let sortParam = "relevance";
+  if (sort === "date_desc") {
+    sortParam = "date_desc";
+  } else if (sort === "date_asc") {
+    sortParam = "date_asc";
+  }
+
+  // Construir a URL para a API do servidor
+  const params = new URLSearchParams({
+    q: query,
+    sort: sortParam,
+    page_size: "50", // Aumentar o número de resultados
+  });
+
+  // Adicionar filtro de ano se especificado
+  if (year && year !== "all" && year !== "older") {
+    params.set("year", year);
+  } else if (year === "older") {
+    params.set("year", "older");
+  }
+
+  // Usar a API do servidor para evitar problemas de CORS
+  const response = await fetch(`/api/ieee/search?${params.toString()}`);
+
+  if (!response.ok) {
+    console.warn(
+      `IEEE API retornou status ${response.status}. Retornando array vazio.`
+    );
+    return [];
+  }
+
+  const data = await response.json();
+  return data.articles || [];
+}
+
+// Função para buscar artigos do Springer
+async function searchSpringer(
+  query: string,
+  year: string,
+  sort: string
+): Promise<Article[]> {
+  // Mapear os parâmetros de ordenação
+  let sortParam = "relevance";
+  if (sort === "date_desc") {
+    sortParam = "date_desc";
+  } else if (sort === "date_asc") {
+    sortParam = "date_asc";
+  }
+
+  // Construir a URL para a API do servidor
+  const params = new URLSearchParams({
+    q: query,
+    sort: sortParam,
+    page_size: "50", // Aumentar o número de resultados
+  });
+
+  // Adicionar filtro de ano se especificado
+  if (year && year !== "all" && year !== "older") {
+    params.set("year", year);
+  } else if (year === "older") {
+    params.set("year", "older");
+  }
+
+  // Usar a API do servidor para evitar problemas de CORS
+  const response = await fetch(`/api/springer/search?${params.toString()}`);
+
+  if (!response.ok) {
+    console.warn(
+      `Springer API retornou status ${response.status}. Retornando array vazio.`
+    );
+    return [];
+  }
+
+  const data = await response.json();
+  return data.articles || [];
+}
+
+// Função para buscar artigos do DOAJ
+async function searchDOAJ(
+  query: string,
+  year: string,
+  sort: string
+): Promise<Article[]> {
+  // Mapear os parâmetros de ordenação
+  let sortParam = "relevance";
+  if (sort === "date_desc") {
+    sortParam = "date_desc";
+  } else if (sort === "date_asc") {
+    sortParam = "date_asc";
+  }
+
+  // Construir a URL para a API do servidor
+  const params = new URLSearchParams({
+    q: query,
+    sort: sortParam,
+    page_size: "50", // Aumentar o número de resultados
+  });
+
+  // Adicionar filtro de ano se especificado
+  if (year && year !== "all" && year !== "older") {
+    params.set("year", year);
+  } else if (year === "older") {
+    params.set("year", "older");
+  }
+
+  // Usar a API do servidor para evitar problemas de CORS
+  const response = await fetch(`/api/doaj/search?${params.toString()}`);
+
+  if (!response.ok) {
+    console.warn(
+      `DOAJ API retornou status ${response.status}. Retornando array vazio.`
+    );
+    return [];
+  }
+
+  const data = await response.json();
+  return data.articles || [];
+}
+
 // Função para obter um artigo por ID
 export async function getArticleById(id: string): Promise<Article | null> {
   console.log(`Buscando artigo com ID: ${id}`);
@@ -322,6 +544,24 @@ export async function getArticleById(id: string): Promise<Article | null> {
       apiEndpoint = "/api/core/article";
     } else if (id.startsWith("epmc-")) {
       apiEndpoint = "/api/europepmc/article";
+    } else if (id.startsWith("scopus-")) {
+      apiEndpoint = "/api/scopus/article";
+    } else if (id.startsWith("ieee-")) {
+      apiEndpoint = "/api/ieee/article";
+    } else if (id.startsWith("springer-")) {
+      apiEndpoint = "/api/springer/article";
+    } else if (id.startsWith("doaj-")) {
+      apiEndpoint = "/api/doaj/article";
+    } else if (id.startsWith("crossref-")) {
+      // Usar a API do CrossRef diretamente
+      return await import("./api-sources/crossref").then((module) =>
+        module.getCrossRefArticleById(id)
+      );
+    } else if (id.startsWith("openalex-")) {
+      // Usar a API do OpenAlex diretamente
+      return await import("./api-sources/openalex").then((module) =>
+        module.getOpenAlexArticleById(id)
+      );
     }
 
     // Usar a API do servidor para evitar problemas de CORS

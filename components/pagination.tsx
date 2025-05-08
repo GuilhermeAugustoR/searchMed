@@ -7,6 +7,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface PaginationProps {
   currentPage: number;
@@ -77,13 +78,19 @@ export function Pagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex items-center justify-center space-x-2 mt-8">
+    <motion.div
+      className="flex items-center justify-center space-x-2 mt-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.3 }}
+    >
       <Button
         variant="outline"
         size="icon"
         onClick={() => onPageChange(1)}
         disabled={currentPage === 1}
         aria-label="Primeira página"
+        className="hidden sm:flex hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
         <ChevronsLeft className="h-4 w-4" />
       </Button>
@@ -93,32 +100,43 @@ export function Pagination({
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         aria-label="Página anterior"
+        className="hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
-      {pageNumbers.map((page, index) => {
-        if (page === -1 || page === -2) {
-          // Renderizar elipses
-          return (
-            <span key={`ellipsis-${index}`} className="px-3 py-2">
-              ...
-            </span>
-          );
-        }
+      <div className="flex items-center space-x-2">
+        {pageNumbers.map((page, index) => {
+          if (page === -1 || page === -2) {
+            // Renderizar elipses
+            return (
+              <span
+                key={`ellipsis-${index}`}
+                className="px-3 py-2 text-slate-500 dark:text-slate-400"
+              >
+                ...
+              </span>
+            );
+          }
 
-        return (
-          <Button
-            key={page}
-            variant={currentPage === page ? "default" : "outline"}
-            onClick={() => onPageChange(page)}
-            aria-label={`Página ${page}`}
-            aria-current={currentPage === page ? "page" : undefined}
-          >
-            {page}
-          </Button>
-        );
-      })}
+          return (
+            <Button
+              key={page}
+              variant={currentPage === page ? "default" : "outline"}
+              onClick={() => onPageChange(page)}
+              aria-label={`Página ${page}`}
+              aria-current={currentPage === page ? "page" : undefined}
+              className={
+                currentPage === page
+                  ? "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary transition-all duration-300"
+                  : "hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              }
+            >
+              {page}
+            </Button>
+          );
+        })}
+      </div>
 
       <Button
         variant="outline"
@@ -126,6 +144,7 @@ export function Pagination({
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         aria-label="Próxima página"
+        className="hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
@@ -135,9 +154,10 @@ export function Pagination({
         onClick={() => onPageChange(totalPages)}
         disabled={currentPage === totalPages}
         aria-label="Última página"
+        className="hidden sm:flex hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
         <ChevronsRight className="h-4 w-4" />
       </Button>
-    </div>
+    </motion.div>
   );
 }
