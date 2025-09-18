@@ -4,7 +4,14 @@ import type React from "react";
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Copy, Check, Wand2, BookOpen, Languages } from "lucide-react";
+import {
+  ExternalLink,
+  Copy,
+  Check,
+  Wand2,
+  BookOpen,
+  Languages,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,22 +62,34 @@ export function ArticleView({ article }: ArticleViewProps) {
 
     switch (format) {
       case "apa":
-        citation = `${authors} (${year}). ${title}. ${journal}.${doi ? ` https://doi.org/${doi}` : ""}`;
+        citation = `${authors} (${year}). ${title}. ${journal}.${
+          doi ? ` https://doi.org/${doi}` : ""
+        }`;
         break;
       case "abnt":
-        citation = `${authors.toUpperCase()}. ${title}. ${journal}, ${year}.${doi ? ` DOI: ${doi}.` : ""}`;
+        citation = `${authors.toUpperCase()}. ${title}. ${journal}, ${year}.${
+          doi ? ` DOI: ${doi}.` : ""
+        }`;
         break;
       case "vancouver":
-        const authorsVancouver = authors.split(", ").map(author => {
-          const parts = author.trim().split(" ");
-          if (parts.length >= 2) {
-            const lastName = parts[parts.length - 1];
-            const initials = parts.slice(0, -1).map(name => name.charAt(0)).join("");
-            return `${lastName} ${initials}`;
-          }
-          return author;
-        }).join(", ");
-        citation = `${authorsVancouver}. ${title}. ${journal}. ${year}.${doi ? ` doi: ${doi}` : ""}`;
+        const authorsVancouver = authors
+          .split(", ")
+          .map((author) => {
+            const parts = author.trim().split(" ");
+            if (parts.length >= 2) {
+              const lastName = parts[parts.length - 1];
+              const initials = parts
+                .slice(0, -1)
+                .map((name) => name.charAt(0))
+                .join("");
+              return `${lastName} ${initials}`;
+            }
+            return author;
+          })
+          .join(", ");
+        citation = `${authorsVancouver}. ${title}. ${journal}. ${year}.${
+          doi ? ` doi: ${doi}` : ""
+        }`;
         break;
     }
 
@@ -170,7 +189,8 @@ export function ArticleView({ article }: ArticleViewProps) {
           <AlertDescription>
             <div className="mt-3 space-y-3">
               <p className="text-blue-700 dark:text-blue-300">
-                Acesse o texto completo e informações adicionais no site original
+                Acesse o texto completo e informações adicionais no site
+                original
               </p>
               <Button
                 variant="default"
@@ -200,10 +220,10 @@ export function ArticleView({ article }: ArticleViewProps) {
             Conteúdo
           </TabsTrigger>
           <TabsTrigger value="citations">Citações</TabsTrigger>
-          <TabsTrigger value="ai-tools" className="flex items-center gap-2">
+          {/* <TabsTrigger value="ai-tools" className="flex items-center gap-2">
             <Wand2 className="h-4 w-4" />
             IA
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -269,7 +289,9 @@ export function ArticleView({ article }: ArticleViewProps) {
           {/* Informações adicionais */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl">Informações Bibliográficas</CardTitle>
+              <CardTitle className="text-xl">
+                Informações Bibliográficas
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -277,25 +299,33 @@ export function ArticleView({ article }: ArticleViewProps) {
                   <h4 className="font-medium text-slate-800 dark:text-slate-200 mb-1">
                     Revista/Fonte
                   </h4>
-                  <p className="text-slate-600 dark:text-slate-400">{article.journal}</p>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {article.journal}
+                  </p>
                 </div>
                 <div>
                   <h4 className="font-medium text-slate-800 dark:text-slate-200 mb-1">
                     Ano de Publicação
                   </h4>
-                  <p className="text-slate-600 dark:text-slate-400">{article.year}</p>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {article.year}
+                  </p>
                 </div>
                 <div>
                   <h4 className="font-medium text-slate-800 dark:text-slate-200 mb-1">
                     Idioma
                   </h4>
-                  <p className="text-slate-600 dark:text-slate-400">{article.language}</p>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {article.language}
+                  </p>
                 </div>
                 <div>
                   <h4 className="font-medium text-slate-800 dark:text-slate-200 mb-1">
                     Fonte de Dados
                   </h4>
-                  <p className="text-slate-600 dark:text-slate-400">{article.source}</p>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {article.source}
+                  </p>
                 </div>
               </div>
               {article.doi && (
@@ -459,7 +489,7 @@ export function ArticleView({ article }: ArticleViewProps) {
           </Card>
         </TabsContent>
 
-        <TabsContent value="ai-tools" className="space-y-6">
+        {/* <TabsContent value="ai-tools" className="space-y-6"> 
           <Card>
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2">
@@ -471,7 +501,7 @@ export function ArticleView({ article }: ArticleViewProps) {
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Texto original */}
+              //  Texto original 
               <div className="space-y-3">
                 <h4 className="font-medium text-slate-800 dark:text-slate-200">
                   Resumo Original
@@ -483,7 +513,7 @@ export function ArticleView({ article }: ArticleViewProps) {
                 </div>
               </div>
 
-              {/* Botões de ação */}
+              // Botões de ação
               <div className="flex flex-wrap gap-3">
                 <Button
                   onClick={handleImproveText}
@@ -526,7 +556,7 @@ export function ArticleView({ article }: ArticleViewProps) {
                 </Button>
               </div>
 
-              {/* Resultados da IA */}
+            //  Resultados da IA
               {improvedText && (
                 <div className="space-y-3">
                   <h4 className="font-medium text-green-800 dark:text-green-200 flex items-center gap-2">
@@ -571,7 +601,7 @@ export function ArticleView({ article }: ArticleViewProps) {
             </CardContent>
           </Card>
         </TabsContent>
-
+*/}
         <TabsContent value="content" className="space-y-6">
           <Card>
             <CardHeader>
@@ -597,7 +627,8 @@ export function ArticleView({ article }: ArticleViewProps) {
                       Texto completo disponível
                     </p>
                     <p className="text-sm text-amber-700 dark:text-amber-300">
-                      Para acessar o artigo completo com todas as seções, figuras e tabelas
+                      Para acessar o artigo completo com todas as seções,
+                      figuras e tabelas
                     </p>
                   </div>
                   <Button
