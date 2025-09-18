@@ -99,9 +99,44 @@
   @apply mb-1;
 }
 
+/* Estilos para impressão */
 @media print {
   .no-print {
     display: none;
+  }
+  
+  .prose {
+    @apply text-black;
+  }
+  
+  .prose h2 {
+    @apply text-black font-bold text-lg mt-4 mb-2;
+  }
+  
+  .prose h3 {
+    @apply text-black font-semibold text-base mt-3 mb-2;
+  }
+  
+  .prose p {
+    @apply text-black mb-3 leading-relaxed;
+  }
+  
+  .prose a {
+    @apply text-black underline;
+  }
+  
+  .prose a:after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+  
+  body {
+    @apply bg-white text-black;
+  }
+  
+  .container {
+    @apply max-w-none px-2;
   }
 }
 

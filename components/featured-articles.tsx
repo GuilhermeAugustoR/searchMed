@@ -112,6 +112,21 @@ export function FeaturedArticles() {
             <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-4">
               {article.abstract}
             </p>
+            
+            {/* Informações adicionais */}
+            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                <div>
+                  <span className="font-medium">Fonte:</span> {article.source}
+                </div>
+                {article.doi && (
+                  <div>
+                    <span className="font-medium">DOI:</span> 
+                    <span className="font-mono ml-1">{article.doi}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col items-start pt-4 border-t">
             <p className="text-sm text-slate-500 dark:text-slate-500 mb-2">

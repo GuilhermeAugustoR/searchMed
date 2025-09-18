@@ -219,6 +219,24 @@ export function SearchResults({
               <p className="text-slate-600 dark:text-slate-400 line-clamp-3 text-sm md:text-base">
                 {article.abstract}
               </p>
+              
+              {/* Informações adicionais */}
+              <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                <div className="grid grid-cols-2 gap-4 text-xs text-slate-500 dark:text-slate-400">
+                  <div>
+                    <span className="font-medium">Idioma:</span> {article.language}
+                  </div>
+                  <div>
+                    <span className="font-medium">Ano:</span> {article.year}
+                  </div>
+                  {article.doi && (
+                    <div className="col-span-2">
+                      <span className="font-medium">DOI:</span> 
+                      <span className="font-mono ml-1">{article.doi}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/80 dark:bg-slate-800/50 backdrop-blur-sm border-t p-4">
               <div className="flex flex-wrap gap-2">

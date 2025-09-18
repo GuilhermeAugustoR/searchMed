@@ -137,11 +137,15 @@ export default function ArticlePage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-8">
           <ArticleActions article={article} />
         </div>
 
-        <ArticleView article={article} />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-6 md:p-8">
+            <ArticleView article={article} />
+          </div>
+        </div>
       </div>
     </div>
   );
